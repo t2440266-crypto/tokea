@@ -206,6 +206,12 @@ function syncPayConfirm(): void {
 }
 
 function runtimeTick(): void {
+  const engine = ctx.engineDay();
+  if (!engine?.on) {
+    if (promptKey) clearChainPrompt();
+    if (sessionPromptId) clearSessionPrompt();
+    return;
+  }
   const nowMs = ctx.state.nowMs;
   ctx.expireSessions();
 
@@ -271,7 +277,7 @@ function runtimeTick(): void {
   }
 }
 
-if (isVisitDay(ctx.state.persisted.settings, ctx.state.date)) {
+if (isVisitDay(ctx.state.persisted.settings, ctx.state.date) && ctx.engineDay()?.on) {
   void requestNotifyPermission();
 }
 
@@ -342,11 +348,12 @@ ctx.subscribe(render);
 render();
 
 window.setInterval(() => {
+  const wallMs = nowOverride === null ? Date.now() : currentNowMs();
+  ctx.tickClock(wallMs);
   if (nowOverride === null) {
     ctx.state.now = minutesNow();
-    ctx.state.nowMs = Date.now();
   } else {
-    ctx.state.nowMs = currentNowMs();
+    ctx.state.now = nowOverride;
   }
   const today = todayISO();
   if (today !== ctx.state.date) {

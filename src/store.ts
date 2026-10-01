@@ -2,7 +2,7 @@ import { defaultSettings } from './schedule';
 import type { BlockKind, DayEdits, LogEntry, Settings } from './schedule';
 import { defaultRoutine } from './routine';
 import type { Routine } from './routine';
-import type { FineSession } from './cycle';
+import type { EngineDay, FineSession } from './cycle';
 import type { HistoryEntry, Topic } from './topics';
 
 export const STORAGE_KEY = 'daydriver:v1';
@@ -25,6 +25,7 @@ export interface Persisted {
   savedTopicIds: string[];
   fines: Record<string, number>;
   fineSessions: FineSession[];
+  engine: Record<string, EngineDay>;
 }
 
 export function defaultPersisted(): Persisted {
@@ -39,11 +40,50 @@ export function defaultPersisted(): Persisted {
     savedTopicIds: [],
     fines: {},
     fineSessions: [],
+    engine: {},
   };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function validEngine(value: unknown): Record<string, EngineDay> {
+  if (!isRecord(value)) return {};
+  const out: Record<string, EngineDay> = {};
+  for (const [date, e] of Object.entries(value)) {
+    if (
+      isRecord(e) &&
+      typeof e.on === 'boolean' &&
+      Number.isFinite(e.anchorMs) &&
+      Number.isFinite(e.baseEffMs) &&
+      Number.isFinite(e.resumeWallMs)
+    ) {
+      out[date] = {
+        on: e.on,
+        anchorMs: Number(e.anchorMs),
+        baseEffMs: Number(e.baseEffMs),
+        resumeWallMs: Number(e.resumeWallMs),
+      };
+    }
+  }
+  return out;
+}
+
+function pruneEngine(engine: Record<string, EngineDay>): Record<string, EngineDay> {
+  const cutoff = new Date(Date.now() - 30 * 86400000);
+  const y = cutoff.getFullYear();
+  const m = String(cutoff.getMonth() + 1).padStart(2, '0');
+  const d = String(cutoff.getDate()).padStart(2, '0');
+  const min = `${y}-${m}-${d}`;
+  let changed = false;
+  for (const date of Object.keys(engine)) {
+    if (date < min) {
+      delete engine[date];
+      changed = true;
+    }
+  }
+  return changed ? { ...engine } : engine;
 }
 
 export function migrate(raw: unknown): Persisted {
@@ -107,6 +147,7 @@ export function migrate(raw: unknown): Persisted {
     savedTopicIds: Array.isArray(raw.savedTopicIds) ? (raw.savedTopicIds as string[]) : [],
     fines: isRecord(raw.fines) ? (raw.fines as Record<string, number>) : {},
     fineSessions: Array.isArray(raw.fineSessions) ? (raw.fineSessions as FineSession[]) : [],
+    engine: validEngine(raw.engine),
   };
 }
 
@@ -121,5 +162,6 @@ export function loadState(storage: StorageLike): Persisted {
 }
 
 export function saveState(storage: StorageLike, state: Persisted): void {
+  state.engine = pruneEngine(state.engine);
   storage.setItem(STORAGE_KEY, JSON.stringify(state));
 }

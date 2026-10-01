@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createApp, todayISO } from './app';
+import { windowBounds } from './cycle';
 import { STORAGE_KEY, defaultPersisted, loadState, saveState } from './store';
 import type { StorageLike } from './store';
 
@@ -316,6 +317,7 @@ describe('fine sessions [spec 0004]', () => {
   test('start creates a running session with endsAt from the activity duration [covers AC-2]', () => {
     const storage = memStorage();
     const app = createApp(storage);
+    app.setEngine(true);
     const session = app.startFineSession('pushups', 97);
     expect(session).not.toBeNull();
     expect(session!.status).toBe('running');
@@ -327,6 +329,7 @@ describe('fine sessions [spec 0004]', () => {
   test('second start is a no-op while one is running [covers AC-7]', () => {
     const storage = memStorage();
     const app = createApp(storage);
+    app.setEngine(true);
     app.startFineSession('pushups', 97);
     app.startFineSession('smoke', 97);
     expect(loadState(storage).fineSessions).toHaveLength(1);
@@ -335,6 +338,7 @@ describe('fine sessions [spec 0004]', () => {
   test('paid flips the row, clears one fine, marks paid [covers AC-3]', () => {
     const storage = memStorage();
     const app = createApp(storage);
+    app.setEngine(true);
     app.markVerified({ kind: 'pushups', cycleIndex: 97 }, 'x');
     expect(loadState(storage).fines.pushups).toBe(1);
     const session = app.startFineSession('pushups', 97)!;
@@ -349,6 +353,7 @@ describe('fine sessions [spec 0004]', () => {
   test('paid with no row still marks paid and floors the ledger [covers AC-3]', () => {
     const storage = memStorage();
     const app = createApp(storage);
+    app.setEngine(true);
     const session = app.startFineSession('stories', 96)!;
     app.answerSession(session.id, 'paid');
     expect(loadState(storage).fineSessions[0].status).toBe('paid');
@@ -358,6 +363,7 @@ describe('fine sessions [spec 0004]', () => {
   test('notdone expires the session and keeps the fine [covers AC-4]', () => {
     const storage = memStorage();
     const app = createApp(storage);
+    app.setEngine(true);
     app.markVerified({ kind: 'smoke', cycleIndex: 95 }, 'x');
     const session = app.startFineSession('smoke', 95)!;
     app.answerSession(session.id, 'notdone');
@@ -368,6 +374,7 @@ describe('fine sessions [spec 0004]', () => {
   test('answer at or past endsAt is rejected [covers AC-4]', () => {
     const storage = memStorage();
     const app = createApp(storage);
+    app.setEngine(true);
     app.markVerified({ kind: 'pushups', cycleIndex: 94 }, 'x');
     const session = app.startFineSession('pushups', 94)!;
     vi.setSystemTime(new Date(session.endsAt + 1000));
@@ -380,6 +387,7 @@ describe('fine sessions [spec 0004]', () => {
   test('expireSessions expires at endsAt; reconcile does the same on boot [covers AC-4, AC-7]', () => {
     const storage = memStorage();
     const app = createApp(storage);
+    app.setEngine(true);
     const session = app.startFineSession('pushups', 93)!;
     vi.setSystemTime(new Date(session.endsAt + 1000));
     app.state.nowMs = Date.now();
@@ -410,7 +418,16 @@ describe('reconcile [spec 0003]', () => {
   test('books x with auto for every ended unverified activity, once [covers AC-9]', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-01T12:00:00'));
+    const seededState = defaultPersisted();
+    const bounds = windowBounds(seededState.settings, todayISO());
+    seededState.engine[todayISO()] = {
+      on: true,
+      anchorMs: bounds!.start,
+      baseEffMs: Date.now(),
+      resumeWallMs: Date.now(),
+    };
     const storage = memStorage();
+    saveState(storage, seededState);
     const app = createApp(storage);
     const ended = loadState(storage).logs.filter((l) => l.auto === true && l.outcome === 'x');
     expect(ended.length).toBeGreaterThan(0);
@@ -430,5 +447,115 @@ describe('reconcile [spec 0003]', () => {
     saveState(storage, state);
     createApp(storage);
     expect(loadState(storage).logs.filter((l) => l.auto === true)).toHaveLength(0);
+  });
+});
+
+describe('engine on off [spec 0005]', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-01T07:00:00'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('fresh day: no entry, empty schedule, reconcile books nothing [covers AC-1, AC-3]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    expect(app.engineDay()).toBeNull();
+    expect(app.schedule()).toHaveLength(0);
+    const before = loadState(storage).logs.length;
+    app.reconcile();
+    expect(loadState(storage).logs.length).toBe(before);
+    expect(Object.keys(loadState(storage).fines)).toHaveLength(0);
+  });
+
+  test('first ON creates entry anchored at the ON moment [covers AC-2]', () => {
+    const app = createApp(memStorage());
+    const ok = app.setEngine(true);
+    expect(ok).toBe(true);
+    const entry = app.engineDay()!;
+    expect(entry.on).toBe(true);
+    expect(entry.anchorMs).toBe(Date.now());
+    expect(app.schedule()[0].start).toBe(Date.now());
+  });
+
+  test('OFF freezes the effective clock [covers AC-3]', () => {
+    const app = createApp(memStorage());
+    app.setEngine(true);
+    app.setEngine(false);
+    const frozen = app.state.nowMs;
+    const later = Date.now() + 60 * 60000;
+    app.tickClock(later);
+    expect(app.state.nowMs).toBe(frozen);
+    expect(app.engineDay()!.on).toBe(false);
+  });
+
+  test('ON resumes from the frozen spot, state survives save and load [covers AC-4]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    app.setEngine(true);
+    app.tickClock(Date.now() + 10 * 60000);
+    app.setEngine(false);
+    const frozen = app.state.nowMs;
+    app.tickClock(Date.now() + 60 * 60000);
+    app.setEngine(true);
+    expect(app.state.nowMs).toBe(frozen);
+
+    const reloaded = createApp(storage);
+    expect(reloaded.engineDay()!.on).toBe(true);
+    reloaded.tickClock(Date.now() + 120 * 60000);
+    expect(reloaded.state.nowMs).toBeGreaterThan(frozen);
+  });
+
+  test('OFF is refused while a fine session runs [covers AC-5]', () => {
+    const app = createApp(memStorage());
+    app.setEngine(true);
+    const session = app.startFineSession('pushups', 97);
+    expect(session).not.toBeNull();
+    expect(app.setEngine(false)).toBe(false);
+    expect(app.engineDay()!.on).toBe(true);
+    app.answerSession(session!.id, 'paid');
+    expect(app.setEngine(false)).toBe(true);
+    expect(app.engineDay()!.on).toBe(false);
+  });
+
+  test('startFineSession returns null while OFF [covers AC-5]', () => {
+    const app = createApp(memStorage());
+    expect(app.startFineSession('pushups', 97)).toBeNull();
+    app.setEngine(true);
+    app.setEngine(false);
+    expect(app.startFineSession('pushups', 97)).toBeNull();
+  });
+
+  test('reconcile skips occurrences before the anchor [covers AC-2]', () => {
+    vi.setSystemTime(new Date('2026-10-01T18:00:00'));
+    const storage = memStorage();
+    const seededState = defaultPersisted();
+    const bounds = windowBounds(seededState.settings, todayISO())!;
+    const anchor = bounds.start + 3 * 3600000;
+    seededState.engine[todayISO()] = {
+      on: true,
+      anchorMs: anchor,
+      baseEffMs: Date.now(),
+      resumeWallMs: Date.now(),
+    };
+    saveState(storage, seededState);
+    createApp(storage);
+    const auto = loadState(storage).logs.filter((l) => l.auto === true);
+    expect(auto.length).toBeGreaterThan(0);
+    const earliest = Math.min(...auto.map((l) => l.plannedStart));
+    const anchorMin = new Date(anchor).getHours() * 60 + new Date(anchor).getMinutes();
+    expect(earliest).toBeGreaterThanOrEqual(anchorMin);
+  });
+
+  test('OFF clears the pay confirm overlay state [covers AC-7]', () => {
+    const app = createApp(memStorage());
+    app.setEngine(true);
+    app.askPayFine('pushups', 5);
+    expect(app.state.payConfirm).not.toBeNull();
+    app.setEngine(false);
+    expect(app.state.payConfirm).toBeNull();
   });
 });

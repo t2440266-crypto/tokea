@@ -22,6 +22,19 @@ export interface FineSession {
 
 export type SessionWindow = Pick<FineSession, 'startedAt' | 'endsAt'>;
 
+export interface EngineDay {
+  on: boolean;
+  anchorMs: number;
+  baseEffMs: number;
+  resumeWallMs: number;
+}
+
+export function engineEffNow(entry: EngineDay | null, wallMs: number, lastEffMs: number): number {
+  if (!entry) return wallMs;
+  if (!entry.on) return entry.baseEffMs;
+  return Math.max(lastEffMs, entry.baseEffMs + (wallMs - entry.resumeWallMs), entry.baseEffMs);
+}
+
 export function localDateKey(ms: number): string {
   const d = new Date(ms);
   const y = d.getFullYear();
@@ -60,6 +73,7 @@ export function chainSchedule(
   settings: Settings,
   date: string,
   sessions: SessionWindow[] = [],
+  anchorMs?: number,
 ): ChainOccurrence[] {
   const bounds = windowBounds(settings, date);
   if (!bounds) return [];
@@ -68,7 +82,7 @@ export function chainSchedule(
   );
   if (order.length === 0) return [];
   const occ: ChainOccurrence[] = [];
-  let cursor = bounds.start;
+  let cursor = anchorMs ?? bounds.start;
   let index = 0;
   let cycle = 1;
   while (cursor < bounds.end) {

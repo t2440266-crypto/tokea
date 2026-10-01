@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import { STORAGE_KEY, defaultPersisted, loadState, migrate, saveState } from './store';
+
+function todayKey(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 import type { StorageLike } from './store';
 
 function memStorage(initial?: Record<string, string>): StorageLike {
@@ -109,5 +117,54 @@ describe('migrate', () => {
     expect(result.settings.visitEnd).toBe(20 * 60);
     expect(result.settings.durations.lunch).toBe(defaultPersisted().settings.durations.lunch);
     expect(result.savedTopicIds).toEqual([]);
+  });
+});
+
+describe('engine map [spec 0005]', () => {
+  test('defaults to an empty map', () => {
+    expect(defaultPersisted().engine).toEqual({});
+  });
+
+  test('legacy save without the key loads as empty [covers AC-1]', () => {
+    const raw = JSON.parse(JSON.stringify(defaultPersisted())) as Record<string, unknown>;
+    delete raw.engine;
+    const loaded = migrate(raw);
+    expect(loaded.engine).toEqual({});
+  });
+
+  test('invalid engine entries are dropped, valid ones kept', () => {
+    const raw = JSON.parse(JSON.stringify(defaultPersisted())) as Record<string, unknown>;
+    raw.engine = {
+      '2026-10-01': { on: true, anchorMs: 1, baseEffMs: 2, resumeWallMs: 3 },
+      '2026-10-02': { on: 'yes' },
+      bad: 7,
+    };
+    const loaded = migrate(raw);
+    expect(Object.keys(loaded.engine)).toEqual(['2026-10-01']);
+    expect(loaded.engine['2026-10-01'].on).toBe(true);
+  });
+
+  test('engine entries roundtrip through save and load', () => {
+    const storage = memStorage();
+    const state = defaultPersisted();
+    state.engine['2026-10-01'] = { on: false, anchorMs: 10, baseEffMs: 20, resumeWallMs: 30 };
+    saveState(storage, state);
+    expect(loadState(storage).engine['2026-10-01']).toEqual({
+      on: false,
+      anchorMs: 10,
+      baseEffMs: 20,
+      resumeWallMs: 30,
+    });
+  });
+
+  test('entries older than 30 days are pruned on write', () => {
+    const storage = memStorage();
+    const state = defaultPersisted();
+    state.engine['2000-01-01'] = { on: true, anchorMs: 1, baseEffMs: 1, resumeWallMs: 1 };
+    state.engine[todayKey()] = { on: true, anchorMs: 2, baseEffMs: 2, resumeWallMs: 2 };
+    saveState(storage, state);
+    const loaded = loadState(storage);
+    expect(loaded.engine['2000-01-01']).toBeUndefined();
+    expect(loaded.engine[todayKey()]).toBeDefined();
   });
 });

@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import { chainSchedule, occurrenceAt, promptTimes, sessionsForDate, windowBounds } from './cycle';
+import {
+  chainSchedule,
+  engineEffNow,
+  occurrenceAt,
+  promptTimes,
+  sessionsForDate,
+  windowBounds,
+} from './cycle';
 import type { ChainOccurrence } from './cycle';
 import { defaultSettings } from './schedule';
 import type { Settings } from './schedule';
@@ -208,5 +215,59 @@ describe('promptTimes', () => {
     const t2 = promptTimes(occWith('recap', at(9), at(9, 3)));
     expect(t2.openAt).toBe(at(9));
     expect(t2.closeAt).toBe(at(9, 3));
+  });
+});
+
+describe('anchor [spec 0005]', () => {
+  test('cursor starts at anchorMs, not window start [covers AC-2]', () => {
+    const bounds = windowBounds(s(), DATE)!;
+    const anchor = bounds.start + 3 * 3600000;
+    const occ = chainSchedule(s(), DATE, [], anchor);
+    expect(occ[0].start).toBe(anchor);
+    expect(occ[0].kind).toBe(s().cycleOrder[0]);
+  });
+
+  test('anchor before visitStart starts immediately [covers AC-8]', () => {
+    const bounds = windowBounds(s(), DATE)!;
+    const anchor = bounds.start - 90 * 60000;
+    const occ = chainSchedule(s(), DATE, [], anchor);
+    expect(occ[0].start).toBe(anchor);
+  });
+
+  test('anchor at or past window end yields empty chain [covers AC-6]', () => {
+    const bounds = windowBounds(s(), DATE)!;
+    expect(chainSchedule(s(), DATE, [], bounds.end)).toHaveLength(0);
+    expect(chainSchedule(s(), DATE, [], bounds.end + 60000)).toHaveLength(0);
+  });
+
+  test('non visit day stays empty with an anchor [covers AC-6]', () => {
+    const custom = s();
+    custom.visitDays = [1, 2, 3, 4, 5];
+    expect(chainSchedule(custom, '2026-10-04', [], 1760000000000)).toHaveLength(0);
+  });
+});
+
+describe('engineEffNow [spec 0005]', () => {
+  const wall = 1760000000000;
+
+  test('no entry returns wall time', () => {
+    expect(engineEffNow(null, wall, 0)).toBe(wall);
+  });
+
+  test('OFF holds the frozen base [covers AC-3]', () => {
+    const entry = { on: false, anchorMs: wall, baseEffMs: wall - 600000, resumeWallMs: wall };
+    expect(engineEffNow(entry, wall + 999999, 0)).toBe(wall - 600000);
+  });
+
+  test('ON advances with wall from resume [covers AC-4]', () => {
+    const entry = { on: true, anchorMs: wall, baseEffMs: wall - 600000, resumeWallMs: wall };
+    expect(engineEffNow(entry, wall + 300000, wall - 600000)).toBe(wall - 300000);
+  });
+
+  test('never rewinds below last seen or base [covers AC-4]', () => {
+    const entry = { on: true, anchorMs: wall, baseEffMs: wall, resumeWallMs: wall + 5000 };
+    const last = wall + 10000;
+    expect(engineEffNow(entry, wall, last)).toBe(last);
+    expect(engineEffNow(entry, wall, 0)).toBe(wall);
   });
 });

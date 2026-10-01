@@ -1,7 +1,7 @@
 import { applyEdits, defaultSettings, generatePlan, isVisitDay } from './schedule';
 import type { BlockKind, LogEntry, Plan, Settings } from './schedule';
-import { chainSchedule } from './cycle';
-import type { ChainOccurrence, FineSession } from './cycle';
+import { chainSchedule, engineEffNow } from './cycle';
+import type { ChainOccurrence, EngineDay, FineSession } from './cycle';
 import { loadState, saveState, defaultPersisted } from './store';
 import type { Persisted, StorageLike } from './store';
 import { SEED_TOPICS } from './seedTopics';
@@ -27,6 +27,7 @@ export interface AppCtx {
     view: View;
     now: number;
     nowMs: number;
+    wallMs: number;
     date: string;
     started: Record<string, true>;
     topicFilter: Category | 'all';
@@ -56,6 +57,9 @@ export interface AppCtx {
   ): void;
   reconcile(): void;
   schedule(): ChainOccurrence[];
+  engineDay(): EngineDay | null;
+  setEngine(on: boolean): boolean;
+  tickClock(wallMs: number): void;
   fines(): Record<string, number>;
   startFineSession(kind: BlockKind, cycleIndex: number): FineSession | null;
   answerSession(id: string, result: 'paid' | 'notdone'): void;
@@ -85,12 +89,14 @@ export interface AppCtx {
 export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): AppCtx {
   const persisted = loadState(rootStorage);
   const listeners = new Set<() => void>();
+  const bootWallMs = opts?.nowMs ?? Date.now();
 
   const state: AppCtx['state'] = {
     persisted,
     view: 'today',
     now: minutesNow(),
-    nowMs: opts?.nowMs ?? Date.now(),
+    nowMs: bootWallMs,
+    wallMs: bootWallMs,
     date: todayISO(),
     started: {},
     topicFilter: 'all',
@@ -99,6 +105,11 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
     recapDate: null,
     payConfirm: null,
   };
+
+  function engineDay(): EngineDay | null {
+    return persisted.engine[state.date] ?? null;
+  }
+  state.nowMs = engineEffNow(engineDay(), bootWallMs, Number.NEGATIVE_INFINITY);
 
   function emit(): void {
     saveState(rootStorage, persisted);
@@ -234,7 +245,7 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
       return;
     }
     if (existing) return;
-    const occurrence = chainSchedule(persisted.settings, state.date, persisted.fineSessions).find(
+    const occurrence = schedule().find(
       (o) => o.cycleIndex === occ.cycleIndex && o.kind === occ.kind,
     );
     const entry: LogEntry = {
@@ -257,8 +268,9 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
 
   function reconcile(): void {
     expireSessions();
+    if (!engineDay()) return;
     const nowMs = state.nowMs;
-    const daySchedule = chainSchedule(persisted.settings, state.date, persisted.fineSessions);
+    const daySchedule = schedule();
     let changed = false;
     for (const occ of daySchedule) {
       if (occ.end > nowMs) continue;
@@ -279,7 +291,43 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
   }
 
   function schedule(): ChainOccurrence[] {
-    return chainSchedule(persisted.settings, state.date, persisted.fineSessions);
+    const entry = engineDay();
+    if (!entry) return [];
+    return chainSchedule(persisted.settings, state.date, persisted.fineSessions, entry.anchorMs);
+  }
+
+  function setEngine(on: boolean): boolean {
+    const wall = state.wallMs;
+    const entry = engineDay();
+    if (on) {
+      if (entry) {
+        persisted.engine[state.date] = { ...entry, on: true, resumeWallMs: wall };
+      } else {
+        persisted.engine[state.date] = {
+          on: true,
+          anchorMs: wall,
+          baseEffMs: wall,
+          resumeWallMs: wall,
+        };
+      }
+      state.nowMs = engineEffNow(persisted.engine[state.date], wall, state.nowMs);
+      emit();
+      return true;
+    }
+    if (activeSession()) return false;
+    if (!entry) return true;
+    if (!entry.on) return true;
+    const eff = engineEffNow(entry, wall, state.nowMs);
+    persisted.engine[state.date] = { ...entry, on: false, baseEffMs: eff };
+    state.nowMs = eff;
+    state.payConfirm = null;
+    emit();
+    return true;
+  }
+
+  function tickClock(wallMs: number): void {
+    state.wallMs = wallMs;
+    state.nowMs = engineEffNow(engineDay(), wallMs, state.nowMs);
   }
 
   function fines(): Record<string, number> {
@@ -287,6 +335,7 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
   }
 
   function startFineSession(kind: BlockKind, cycleIndex: number): FineSession | null {
+    if (!engineDay()?.on) return null;
     if (persisted.fineSessions.some((s) => s.status === 'running')) return null;
     const startedAt = state.nowMs;
     const durationMs = (persisted.settings.durations[kind] ?? 0) * 60000;
@@ -439,6 +488,9 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
     markVerified,
     reconcile,
     schedule,
+    engineDay,
+    setEngine,
+    tickClock,
     fines,
     startFineSession,
     answerSession,

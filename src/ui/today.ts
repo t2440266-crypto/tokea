@@ -3,6 +3,7 @@ import { TITLES, isVisitDay } from '../schedule';
 import type { BlockKind, LogEntry } from '../schedule';
 import { occurrenceAt, windowBounds } from '../cycle';
 import type { ChainOccurrence } from '../cycle';
+import { requestNotifyPermission } from '../notify';
 import { el, fmtRemaining, haptic } from './dom';
 
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -12,6 +13,8 @@ export const PAY_CONFIRM_COPY =
 
 export const FINE_TAUNT =
   'That is your dumb foolish fault and I will not have sympathy or mercy on you while paying the fines. Finish paying the fines while the daily activities run — they add +25 minutes for every daily activity running while you pay.';
+
+export const OFF_HINT = 'Turn ON to start Pushups now';
 
 function fmtMs(ms: number): string {
   const d = new Date(ms);
@@ -26,6 +29,25 @@ function fineBadge(fines: Record<string, number>, kind: BlockKind): string | nul
 
 function rowFor(logs: LogEntry[], cycleIndex: number, kind: BlockKind): LogEntry | undefined {
   return logs.find((l) => l.cycleIndex === cycleIndex && l.kind === kind);
+}
+
+function engineToggle(ctx: AppCtx, on: boolean): HTMLElement {
+  const btn = el('button', {
+    class: on ? 'btn btn-wide' : 'btn btn-primary btn-wide',
+    type: 'button',
+    text: on ? 'Turn OFF' : 'Turn ON',
+  });
+  btn.addEventListener('click', () => {
+    haptic();
+    if (on) {
+      ctx.setEngine(false);
+      return;
+    }
+    const first = ctx.engineDay() == null;
+    ctx.setEngine(true);
+    if (first) void requestNotifyPermission();
+  });
+  return btn;
 }
 
 export function renderToday(root: HTMLElement, ctx: AppCtx): void {
@@ -53,6 +75,7 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
     });
     open.addEventListener('click', () => ctx.setView('topics'));
     hero.append(open);
+    hero.append(engineToggle(ctx, ctx.engineDay()?.on === true));
     root.append(hero);
     return;
   }
@@ -64,6 +87,23 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
   const logs = ctx.todayLogs();
   const fines = ctx.fines();
   const session = ctx.activeSession();
+  const engineOn = ctx.engineDay()?.on === true;
+
+  if (!engineOn) {
+    const paused = ctx.engineDay() !== null;
+    hero.append(el('p', { class: 'eyebrow', text: 'engine' }));
+    hero.append(el('p', { class: 'hero-title', text: 'Engine OFF' }));
+    hero.append(
+      el('p', {
+        class: 'hero-sub',
+        text: paused ? 'Paused · turn ON to resume where you stopped.' : OFF_HINT,
+      }),
+    );
+    hero.append(engineToggle(ctx, false));
+    root.append(hero);
+    appendTail(ctx, sched, logs, fines, current, nowMs, root);
+    return;
+  }
 
   if (session) {
     hero.append(el('p', { class: 'eyebrow accent', text: 'paying fine' }));
@@ -88,6 +128,7 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
       }),
     );
     hero.append(el('p', { class: 'taunt', text: FINE_TAUNT }));
+    hero.append(engineToggle(ctx, true));
     root.append(hero);
     appendTail(ctx, sched, logs, fines, current, nowMs, root);
     return;
@@ -105,6 +146,7 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
         }),
       );
     }
+    hero.append(engineToggle(ctx, true));
     root.append(hero);
     appendTail(ctx, sched, logs, fines, current, nowMs, root);
     return;
@@ -134,6 +176,7 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
         text: `until ${fmtMs(current.end)} · ${Math.round(dur)} min`,
       }),
     );
+    hero.append(engineToggle(ctx, true));
     root.append(hero);
   } else {
     hero.append(el('p', { class: 'eyebrow', text: 'loop paused' }));
@@ -148,6 +191,7 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
     });
     recap.addEventListener('click', () => ctx.setView('recap'));
     hero.append(recap);
+    hero.append(engineToggle(ctx, true));
     root.append(hero);
   }
 
@@ -209,9 +253,11 @@ function appendTail(
   root.append(timeline);
 
   const verified = sched.filter((o) => rowFor(logs, o.cycleIndex, o.kind)).length;
-  root.append(
-    el('p', { class: 'progress mono', text: `verified ${verified} of ${sched.length} today` }),
-  );
+  if (sched.length > 0) {
+    root.append(
+      el('p', { class: 'progress mono', text: `verified ${verified} of ${sched.length} today` }),
+    );
+  }
 
   const nextUnpaid = new Map<BlockKind, string>();
   for (const o of sched) {
