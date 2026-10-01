@@ -7,10 +7,6 @@
 
 A master ON/OFF switch on the TODAY screen controls the day engine. Every fresh day starts OFF: no chain, no prompts, no notifications, no fines. The first ON of the day starts the chain with Pushups at that exact moment and the day runs. OFF freezes the engine clock (an effective time that stops advancing, so no occurrence moves, no prompt fires, and no fine accrues) and the next ON resumes from the frozen spot. The state survives a reload both ways.
 
-## Context
-
-The automatic cycling engine (spec 0003) and fine payment mode (spec 0004) run off the wall clock: the moment an occurrence ends unverified, a fine is booked. The owner uses another app for long stretches and does not want the engine quietly piling up fines while away. Today the only way to stop it is to close the tab mid flow, and even then a later reopen reconciles every missed occurrence as an X. The owner needs one obvious switch: turn the day on when they are ready to be driven, turn it off when done, and walk away with nothing accruing. The switch must be visible on TODAY, must default off each day, and must survive a reload so closing the app never loses or invents state.
-
 ## Requirements
 
 **User stories**:
@@ -28,39 +24,6 @@ The automatic cycling engine (spec 0003) and fine payment mode (spec 0004) run o
 - **AC-7**: While OFF, manual row corrections (Done, Skip, X via the existing tap flows) still work, and the header clock keeps showing real wall time. Toggling OFF closes any open engine banner (tick/X card, session card) and the pay confirm overlay.
 - **AC-8**: ON pressed before visitStart starts Pushups immediately (the chain anchor is the ON moment, not clamped to the window start); the hero then shows the running Pushups occurrence, not a "loop starts in" countdown.
 
-## Options considered
-
-### Option 1: Per day engine map with an effective clock
-
-Store an engine entry per date `{ on, anchorMs, baseEffMs, resumeWallMs }`. The engine reads an effective time `effNow` which advances with the wall clock only while `on` and holds still while OFF. All engine logic (chain lookup, prompts, session timers, reconcile) uses `effNow` instead of raw `Date.now()`.
-
-**Pros**:
-- One frozen value makes every downstream behavior (prompts, fines, reconcile) freeze together for free.
-- Reload recovery is pure arithmetic: recompute `effNow` from the stored fields.
-
-**Cons**:
-- Every engine call site must route through `effNow`; a straggler reading `Date.now()` breaks the freeze.
-
-### Option 2: In-memory pause flag only
-
-A boolean in app state pauses the interval work; nothing is stored per day.
-
-**Pros**:
-- Tiny diff.
-
-**Cons**:
-- Fails reload (the flag resets), violating AC-4; boot reconcile would still book the gap as Xs.
-
-### Option 3: Rebuild the chain on each ON
-
-Keep no clock; on every ON, cut a new schedule starting at the resume point.
-
-**Pros**:
-- No effective time concept.
-
-**Cons**:
-- Invalidates occurrence keys and fine session windows already in flight; the +25 penalty cursor (spec 0004) would double count; resume would not be exact. High risk against a shipped engine.
-
 ## Decision
 
 **Chosen option**: Option 1: Per day engine map with an effective clock.
@@ -68,10 +31,6 @@ Keep no clock; on every ON, cut a new schedule starting at the resume point.
 The engine gains a per date entry and reads `effNow`; OFF holds `effNow` still, ON lets it advance from the stored base.
 
 **Implementation skills**: none beyond project AGENTS.md conventions.
-
-## Rationale
-
-The freeze requirement is the whole feature: every accruing behavior must stop as one. A single effective clock freezes them together with one guard, instead of chasing each timer. The engineer's reload requirement forces the state to be persisted (Option 2 is out), and rewriting the schedule per ON (Option 3) would break the fine session keys and penalty cursor already shipped. `max(storedEff, baseEffMs + (wallMs − resumeWallMs))` is the smallest formula that freezes, resumes exactly, and never rewinds.
 
 ## Feature design
 
@@ -183,3 +142,7 @@ Tracer Bullet: one thin thread through storage, engine, runtime, and hero first,
 ## Follow-up
 
 - [ ] None identified.
+
+## Rationale
+
+Reasoning and options: see [rationale.md](rationale.md).
