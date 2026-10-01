@@ -550,6 +550,54 @@ describe('engine on off [spec 0005]', () => {
     expect(earliest).toBeGreaterThanOrEqual(anchorMin);
   });
 
+  test('reconcile books nothing for time spent OFF when frozen at window start [covers AC-3]', () => {
+    vi.setSystemTime(new Date('2026-10-01T18:00:00'));
+    const storage = memStorage();
+    const seededState = defaultPersisted();
+    const bounds = windowBounds(seededState.settings, todayISO())!;
+    seededState.engine[todayISO()] = {
+      on: false,
+      anchorMs: bounds.start,
+      baseEffMs: bounds.start,
+      resumeWallMs: bounds.start,
+    };
+    saveState(storage, seededState);
+    createApp(storage);
+    const auto = loadState(storage).logs.filter((l) => l.auto === true);
+    expect(auto).toHaveLength(0);
+    expect(Object.keys(loadState(storage).fines)).toHaveLength(0);
+  });
+
+  test('markVerified plannedStart follows the anchor, not the window start [covers AC-2]', () => {
+    vi.setSystemTime(new Date('2026-10-01T18:00:00'));
+    const storage = memStorage();
+    const seededState = defaultPersisted();
+    const anchor = new Date('2026-10-01T12:00:00').getTime();
+    seededState.engine[todayISO()] = {
+      on: true,
+      anchorMs: anchor,
+      baseEffMs: Date.now(),
+      resumeWallMs: Date.now(),
+    };
+    saveState(storage, seededState);
+    const app = createApp(storage);
+    app.markVerified({ kind: 'pushups', cycleIndex: 1 }, 'tick');
+    const row = loadState(storage).logs.find((l) => l.kind === 'pushups' && l.cycleIndex === 1);
+    expect(row?.plannedStart).toBe(12 * 60);
+    expect(row?.plannedStart).not.toBe(9 * 60);
+  });
+
+  test('resume keeps the original anchor from the first ON [covers AC-4]', () => {
+    const app = createApp(memStorage());
+    app.setEngine(true);
+    const anchor0 = app.engineDay()!.anchorMs;
+    app.tickClock(Date.now() + 10 * 60000);
+    app.setEngine(false);
+    app.tickClock(Date.now() + 60 * 60000);
+    app.setEngine(true);
+    expect(app.engineDay()!.anchorMs).toBe(anchor0);
+  });
+
   test('OFF clears the pay confirm overlay state [covers AC-7]', () => {
     const app = createApp(memStorage());
     app.setEngine(true);

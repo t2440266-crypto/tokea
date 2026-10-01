@@ -26,7 +26,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 5 | Automatic cycling engine | Slice 2 | done |
 | 6 | Every day of the week | Slice 2 | done |
 | 7 | Fine payment mode | Slice 3 | done |
-| 8 | Engine on off toggle | Slice 4 | in-progress |
+| 8 | Engine on off toggle | Slice 4 | done |
 | 9 | Faster response | Slice 4 | done |
 
 ## Existing
@@ -143,7 +143,7 @@ Spec [0004](../specs/0004-fine-payment-mode/index.md) · code in `src/cycle.ts`,
 
 ## Slice 4: Control and responsiveness
 
-### 8. Engine on off toggle · in-progress
+### 8. Engine on off toggle · done
 A master ON/OFF switch for the day engine. Fresh day (and fresh app open) starts OFF: nothing runs, no chain, no notifications, no bookings. First ON begins the chain with Pushups at that moment and the day runs; OFF freezes everything in place (clock, prompts, sessions, fines stop accruing); the next ON resumes from the frozen spot. While OFF the app can sit open all day without a single fine being booked.
 
 **Done when:** the toggle is prominent on TODAY; default state each day is OFF; ON starts the chain at the toggle moment with Pushups; OFF freezes the effective clock so no occurrence advances, no prompt or notification fires, and boot reconcile books nothing for off time; ON again resumes exactly where it stopped; state survives reload; a fine session cannot run while OFF.
@@ -155,7 +155,8 @@ A master ON/OFF switch for the day engine. Fresh day (and fresh app open) starts
    - [x] TODAY hero: OFF panel, toggle, empty chain note (AC-1, AC-6, AC-7, AC-8)
 - [x] Verify it: /check verify engine on off toggle
    - Evidence: CDP probe 12/12 PASS (fresh OFF hero, ON anchor + permission spy, freeze, reload both ways, session guards, manual edits, late ON, non visit, prune, ?now, 0 console errors); screenshots in %TEMP%\\visitday-verify\\engine-s{1,2,5}*.png; npm run verify 113/113
-- [ ] Test it: /test engine on off toggle
+- [x] Test it: /test engine on off toggle
+   - Suite 116/116 (3 gap tests added: OFF reconcile books nothing, plannedStart follows anchor, anchor stable across resume)
 Spec [0005](../specs/0005-engine-on-off-toggle/index.md) · code in `src/cycle.ts`, `src/app.ts`, `src/main.ts`, `src/ui/today.ts`, `src/store.ts`
 
 ### 9. Faster response · done
