@@ -1,3 +1,5 @@
+import '../theme.css';
+
 export function el(
   tag: string,
   attrs: Record<string, string | number | boolean | undefined> = {},
