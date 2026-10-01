@@ -2,6 +2,7 @@ import type { AppCtx } from '../app';
 import { todayISO } from '../app';
 import { chainSchedule, sessionsForDate } from '../cycle';
 import { generatePlan, isVisitDay, weekStats } from '../schedule';
+import '../theme-layout.css';
 import { el, fmtClock } from './dom';
 
 const DAY_SHORT = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -43,9 +44,32 @@ export function renderWeek(root: HTMLElement, ctx: AppCtx): void {
   );
   const warnings = stats.warnings.filter((w) => !w.startsWith('Recap'));
 
+  const totalPlanned = rows.reduce((sum, r) => sum + r.plannedMin, 0);
+  const totalDone = rows.reduce((sum, r) => sum + r.doneMin, 0);
+  const pct = totalPlanned > 0 ? Math.min(100, Math.round((totalDone / totalPlanned) * 100)) : 0;
+  const dial = el('div', { class: 'wsum-dial', style: `--p:${pct};` });
+  dial.append(el('span', { class: 'wsum-pct', text: `${pct}%` }));
+  root.append(
+    el(
+      'div',
+      { class: 'wsum' },
+      dial,
+      el(
+        'div',
+        {},
+        el('p', { class: 'eyebrow', text: 'this week' }),
+        el('p', { class: 'wsum-title', text: `${Math.round(totalDone)} min done` }),
+        el('p', {
+          class: 'wsum-sub mono',
+          text: `of ${Math.round(totalPlanned)} planned · ${rows.length} Tokea Days`,
+        }),
+      ),
+    ),
+  );
+
   if (warnings.length > 0) {
     const banner = el('div', { class: 'banner' });
-    banner.append(el('p', { class: 'eyebrow', text: 'this week' }));
+    banner.append(el('p', { class: 'eyebrow', text: 'heads up' }));
     for (const w of warnings) banner.append(el('p', { class: 'banner-line', text: w }));
     root.append(banner);
   } else {
