@@ -4,7 +4,7 @@ _Steps derived from spec 0003 acceptance criteria. `/check verify` runs these; `
 ## UI / manual
 - [x] In window: hero shows current activity, countdown, `until HH:MM · N min`; no Start, Done, or Skip anywhere → AC-1, AC-2, AC-7
 - [x] Prompt opens 10 min before end (clamped): in-app banner visible on any view → AC-4
-- [ ] OS notification with tick/X actions visible on a real device or desktop Chrome with notifications enabled (headless and this machine's environment suppress notification storage; permission grant, service worker controller, and showNotification call all proven) → AC-3, AC-4
+- [x] OS notification with tick/X actions visible on a real device or desktop Chrome with notifications enabled (engineer confirmed both prompts on a real device) → AC-3, AC-4
 - [x] Tick in banner → occurrence records done, banner closes, verified count rises → AC-4, AC-6
 - [x] Unanswered at end minus 5 (or app opened after prompt close) → auto books x, fine +1 → AC-5
 - [x] Boot reconcile books every ended unverified activity exactly once; second boot books nothing → AC-9

@@ -23,9 +23,11 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 2 | Drag to reorder the plan | Slice 1 | done |
 | 3 | Template order editor | Slice 1 | done |
 | 4 | Lighthouse audit pass | Slice 1 | done |
-| 5 | Automatic cycling engine | Slice 2 | in-progress |
+| 5 | Automatic cycling engine | Slice 2 | done |
 | 6 | Every day of the week | Slice 2 | done |
-| 7 | Fine payment mode | Slice 3 | in-progress |
+| 7 | Fine payment mode | Slice 3 | done |
+| 8 | Engine on off toggle | Slice 4 | planned |
+| 9 | Faster response | Slice 4 | planned |
 
 ## Existing
 
@@ -98,7 +100,7 @@ Code in `public/manifest.webmanifest`, `index.html`
 
 ## Slice 2: Automatic cycling engine
 
-### 5. Automatic cycling engine · in-progress
+### 5. Automatic cycling engine · done
 Endless activity loop on visit days: each activity auto-starts on its own clock with a one-time notification, shows its duration and finish time, and closes with a tick or X verification prompt (5 minute timeout auto marks X) that locks the activity and books a fine to pay when the cycle reaches that activity again. Lunch out is renamed Food time everywhere. Manual Start, Done, and Skip controls are removed; the app runs itself.
 
 **Done when:** the cycle wraps from the last activity back to Pushups with no app input; every activity shows its duration and finish time; a brief one-time notification fires when each activity starts; a tick/X prompt appears 10 minutes before the activity ends, disappears after 5 minutes unconfirmed and marks X; X locks the activity, books a fine visible on that activity when the next cycle reaches it, and a tick locks it clean; rename to Food time is visible across the app.
@@ -110,7 +112,7 @@ Endless activity loop on visit days: each activity auto-starts on its own clock 
    - [x] TODAY auto run: remove Start/Done/Skip, clock ticker, duration/until displays, Food time rename, fine badges (AC-1, AC-7, AC-8)
    - [x] Notification layer: permission, start and prompt notifications, in-app banner, SW actions, timeout (AC-3, AC-4, AC-5)
    - [x] Full AC-tagged suite green (AC-4, AC-6, AC-9)
-- [ ] Verify it: /check verify automatic cycling engine
+- [x] Verify it: /check verify automatic cycling engine
 - [x] Test it: /test automatic cycling engine
 Spec [0003](../specs/0003-automatic-cycling-engine/index.md) · code in `src/cycle.ts`, `src/main.ts`, `src/ui/today.ts`, `src/notify.ts`, `public/sw.js`
 
@@ -125,7 +127,7 @@ Code in `src/schedule.ts`, `src/store.ts`
 
 ## Slice 3: Fine payment mode
 
-### 7. Fine payment mode · in-progress
+### 7. Fine payment mode · done
 Tapping a missed activity from an earlier cycle opens a pay-fine flow instead of the plain correction: a custom confirmation with the exact copy and a `Pay fine and start the time-count` button starts a time-count session for that one activity; 10 minutes before it ends the verification prompt appears with a `The activity done and Fine Paid` button, and ticking it clears the fine. The daily chain keeps running during the session and every daily activity overlapping it is charged +25 minutes; the session card shows the no-sympathy taunt copy while you pay.
 
 **Done when:** tapping a previous cycle miss shows the custom confirm with `Pay fine and start the time-count`; pressing it starts a countdown for that activity only; the prompt at end minus 10 offers `The activity done and Fine Paid` and ticking clears the fine; the chain keeps advancing during the session, every overlapping activity carries +25 minutes on the timeline; the taunt line is visible while paying.
@@ -135,7 +137,7 @@ Tapping a missed activity from an earlier cycle opens a pay-fine flow instead of
    - [x] Persistence: fineSessions, start/answer/expire (ticker + boot), idempotent paid, endsAt guard + tests (AC-2, AC-3, AC-4, AC-7)
    - [x] UI: confirm card exact copy, session hero with taunt, prompt copy switch, live-ledger row routing, stacked overlay (AC-1, AC-6, AC-8)
    - [x] All `chainSchedule` callers pass sessions; AC-tagged suite green (AC-3, AC-5)
-- [ ] Verify it: /check verify fine payment mode
+- [x] Verify it: /check verify fine payment mode
 - [x] Test it: /test fine payment mode
 Spec [0004](../specs/0004-fine-payment-mode/index.md) · code in `src/cycle.ts`, `src/app.ts`, `src/main.ts`, `src/ui/today.ts`, `src/notify.ts`
 

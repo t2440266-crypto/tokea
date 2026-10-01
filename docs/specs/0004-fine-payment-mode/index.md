@@ -1,7 +1,7 @@
 # 0004. Fine payment mode
 
 **Date**: 2026-10-01
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 

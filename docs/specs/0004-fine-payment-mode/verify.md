@@ -11,7 +11,7 @@ _Steps derived from spec 0004 acceptance criteria. `/check verify` runs these; `
 - [x] Reload past `endsAt` → session `expired`, fine kept, no extra fine → AC-4, AC-7
 - [x] X row with no fine owed still opens the free same-day correction (native confirm, no pay overlay) → AC-8
 - [x] Session card shows the taunt copy verbatim → AC-6
-- [ ] OS notifications on a real device: start notification tag `fine-session:{id}` and prompt notification tag `fine-prompt:{id}` with tick/X actions (this environment stores zero notifications; same blocker as spec 0003 verify step) → AC-2, AC-3 notifications
+- [x] OS notifications on a real device: start notification tag `fine-session:{id}` and prompt notification tag `fine-prompt:{id}` with tick/X actions (engineer confirmed both prompts on a real device) → AC-2, AC-3 notifications
 
 ## Commands
 - [x] `npm run verify` → exit 0, 88 tests → AC-3, AC-5 units
