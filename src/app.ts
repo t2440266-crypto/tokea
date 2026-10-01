@@ -426,7 +426,7 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `visitday-${state.date}.json`;
+      a.download = `tokea-${state.date}.json`;
       a.click();
       URL.revokeObjectURL(url);
     },

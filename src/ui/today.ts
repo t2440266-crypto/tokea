@@ -30,15 +30,15 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
   root.append(
     el('p', {
       class: 'dayline',
-      text: visit ? `visit day · ${dayName}` : `not a visit day · ${dayName}`,
+      text: visit ? `Tokea Day · ${dayName}` : `not a Tokea Day · ${dayName}`,
     }),
   );
 
   const hero = el('div', { class: 'hero' });
   if (!visit) {
     hero.append(
-      el('p', { class: 'hero-title', text: 'No visit today.' }),
-      el('p', { class: 'hero-sub', text: 'The loop runs on visit days only.' }),
+      el('p', { class: 'hero-title', text: 'No Tokea Day today.' }),
+      el('p', { class: 'hero-sub', text: 'The loop runs on Tokea Days only.' }),
     );
     const open = el('button', {
       class: 'btn btn-primary btn-wide',
@@ -102,9 +102,9 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
     root.append(hero);
   } else {
     hero.append(el('p', { class: 'eyebrow', text: 'loop paused' }));
-    hero.append(el('p', { class: 'hero-title', text: 'Visit window closed.' }));
+    hero.append(el('p', { class: 'hero-title', text: 'Tokea window closed.' }));
     hero.append(
-      el('p', { class: 'hero-sub', text: 'The loop starts again at the next window open.' }),
+      el('p', { class: 'hero-sub', text: 'The loop starts again when the Tokea window opens.' }),
     );
     const recap = el('button', {
       class: 'btn btn-primary btn-wide',

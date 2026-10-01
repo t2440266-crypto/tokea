@@ -1,7 +1,7 @@
 {
-  "name": "Visit Day Driver",
-  "short_name": "Visitday",
-  "description": "What we are doing now, what is next. Shared visit-day driver for two.",
+  "name": "Tokea System",
+  "short_name": "Tokea",
+  "description": "Tokea System: your day runs itself with reminders, verification, and a fair fine ledger.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

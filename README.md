@@ -1,6 +1,6 @@
-# Visit Day Driver
+# Tokea System
 
-Mobile-first PWA that drives a friend's weekly visit days: shows what two people are supposed to be doing right now, what is next, and keeps a plain record of the day. Six interests, a deterministic day engine, and a discussion-topic bank — all data stays in the browser (`localStorage`, key `daydriver:v1`).
+Mobile first PWA that runs your Tokea Days: an endless activity loop that starts itself with a notification, shows what you should be doing and until when, asks for a tick or X before each activity ends, and books a fair fine when something is missed. All data stays in the browser (`localStorage`, key `daydriver:v1`).
 
 ## Run
 

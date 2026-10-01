@@ -72,7 +72,7 @@ export function renderRecap(root: HTMLElement, ctx: AppCtx): void {
       el(
         'div',
         { class: 'lrow static' },
-        el('span', { class: 'lrow-meta', text: 'not a visit day' }),
+        el('span', { class: 'lrow-meta', text: 'not a Tokea Day' }),
       ),
     );
   }

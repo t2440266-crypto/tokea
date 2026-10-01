@@ -1,4 +1,4 @@
-const CACHE = 'visitday-v1';
+const CACHE = 'tokea-v1';
 const SHELL = [
   '/',
   '/index.html',
@@ -43,7 +43,9 @@ self.addEventListener('message', (event) => {
     });
   }
   if (data.type === 'close') {
-    self.registration.getNotifications({ tag: data.tag }).then((list) => list.forEach((n) => n.close()));
+    self.registration
+      .getNotifications({ tag: data.tag })
+      .then((list) => list.forEach((n) => n.close()));
   }
 });
 

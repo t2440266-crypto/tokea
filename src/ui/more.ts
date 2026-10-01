@@ -14,6 +14,6 @@ export function renderMore(root: HTMLElement, ctx: AppCtx): void {
   menu.append(recap, settings);
   root.append(menu);
   root.append(
-    el('p', { class: 'foot-note', text: 'Visit Day Driver · everything stays on this device' }),
+    el('p', { class: 'foot-note', text: 'Tokea System · everything stays on this device' }),
   );
 }

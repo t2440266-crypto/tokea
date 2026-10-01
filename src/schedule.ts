@@ -265,6 +265,6 @@ export function weekStats(
   if (exercise < 3) warnings.push(`Exercise ${exercise}/3 days this week`);
   if (discussion < 3) warnings.push(`Discussion ${discussion}/3 days this week`);
   if (lunch < 3) warnings.push(`Lunch ${lunch}/3 days this week`);
-  if (recap < rows.length) warnings.push(`Recap ${recap}/${rows.length} visit days this week`);
+  if (recap < rows.length) warnings.push(`Recap ${recap}/${rows.length} Tokea Days this week`);
   return { days: rows, warnings };
 }

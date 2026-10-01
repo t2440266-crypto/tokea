@@ -61,7 +61,7 @@ function timeField(value: number, onSet: (min: number) => void): HTMLElement {
 export function renderSettings(root: HTMLElement, ctx: AppCtx): void {
   const s = ctx.state.persisted.settings;
 
-  root.append(el('p', { class: 'section-label', text: 'visit days' }));
+  root.append(el('p', { class: 'section-label', text: 'Tokea days' }));
   const days = el('div', { class: 'chips' });
   for (let d = 0; d < 7; d++) {
     const on = s.visitDays.includes(d);
@@ -80,7 +80,7 @@ export function renderSettings(root: HTMLElement, ctx: AppCtx): void {
   }
   root.append(days);
 
-  root.append(el('p', { class: 'section-label', text: 'visit window' }));
+  root.append(el('p', { class: 'section-label', text: 'Tokea window' }));
   root.append(
     el(
       'div',
@@ -100,7 +100,7 @@ export function renderSettings(root: HTMLElement, ctx: AppCtx): void {
   root.append(
     el('p', {
       class: 'foot-note',
-      text: 'Order of the repeating activity chain on visit days. The loop wraps from the last entry back to the first inside the visit window.',
+      text: 'Order of the repeating activity chain on Tokea Days. The loop wraps from the last entry back to the first inside the Tokea window.',
     }),
   );
   s.cycleOrder.forEach((kind, idx) => {

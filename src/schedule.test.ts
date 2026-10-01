@@ -10,8 +10,8 @@ import {
 import type { Plan, Settings } from './schedule';
 import { TITLES } from './schedule';
 
-describe('visit day defaults', () => {
-  test('every day of the week is a visit day by default', () => {
+describe('Tokea day defaults', () => {
+  test('every day of the week is a Tokea day by default', () => {
     expect(defaultSettings().visitDays).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 });
