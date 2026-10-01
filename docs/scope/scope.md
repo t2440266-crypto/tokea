@@ -26,7 +26,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 5 | Automatic cycling engine | Slice 2 | done |
 | 6 | Every day of the week | Slice 2 | done |
 | 7 | Fine payment mode | Slice 3 | done |
-| 8 | Engine on off toggle | Slice 4 | planned |
+| 8 | Engine on off toggle | Slice 4 | in-progress |
 | 9 | Faster response | Slice 4 | done |
 
 ## Existing
@@ -143,11 +143,19 @@ Spec [0004](../specs/0004-fine-payment-mode/index.md) · code in `src/cycle.ts`,
 
 ## Slice 4: Control and responsiveness
 
-### 8. Engine on off toggle · needs a decision
+### 8. Engine on off toggle · in-progress
 A master ON/OFF switch for the day engine. Fresh day (and fresh app open) starts OFF: nothing runs, no chain, no notifications, no bookings. First ON begins the chain with Pushups at that moment and the day runs; OFF freezes everything in place (clock, prompts, sessions, fines stop accruing); the next ON resumes from the frozen spot. While OFF the app can sit open all day without a single fine being booked.
 
 **Done when:** the toggle is prominent on TODAY; default state each day is OFF; ON starts the chain at the toggle moment with Pushups; OFF freezes the effective clock so no occurrence advances, no prompt or notification fires, and boot reconcile books nothing for off time; ON again resumes exactly where it stopped; state survives reload; a fine session cannot run while OFF.
-- [ ] Design it (spec): `/architect engine on off toggle`
+- [x] Design it (spec): `/architect engine on off toggle`
+- [ ] Build it: /develop engine on off toggle
+   - [ ] Engine storage: `engine` map, migrate, toggle actions, freeze/resume tests (AC-1, AC-4, AC-5)
+   - [ ] Effective clock: `effNow`, `anchorMs` on `chainSchedule`, anchored call sites (AC-2, AC-3, AC-6, AC-8)
+   - [ ] Runtime gate: prompts, notifications, banners, reconcile, permission on first ON (AC-2, AC-3, AC-7)
+   - [ ] TODAY hero: OFF panel, toggle, empty chain note (AC-1, AC-6, AC-7, AC-8)
+- [ ] Verify it: /check verify engine on off toggle
+- [ ] Test it: /test engine on off toggle
+Spec [0005](../specs/0005-engine-on-off-toggle.md)
 
 ### 9. Faster response · done
 Profile and fix perceived slowness across the app: taps, screen switches, first open, and boundary timing. Evidence first, then cut what measures slow.
