@@ -153,7 +153,8 @@ A master ON/OFF switch for the day engine. Fresh day (and fresh app open) starts
    - [x] Effective clock: `effNow`, `anchorMs` on `chainSchedule`, anchored call sites (AC-2, AC-3, AC-6, AC-8)
    - [x] Runtime gate: prompts, notifications, banners, reconcile, permission on first ON (AC-2, AC-3, AC-7)
    - [x] TODAY hero: OFF panel, toggle, empty chain note (AC-1, AC-6, AC-7, AC-8)
-- [ ] Verify it: /check verify engine on off toggle
+- [x] Verify it: /check verify engine on off toggle
+   - Evidence: CDP probe 12/12 PASS (fresh OFF hero, ON anchor + permission spy, freeze, reload both ways, session guards, manual edits, late ON, non visit, prune, ?now, 0 console errors); screenshots in %TEMP%\\visitday-verify\\engine-s{1,2,5}*.png; npm run verify 113/113
 - [ ] Test it: /test engine on off toggle
 Spec [0005](../specs/0005-engine-on-off-toggle/index.md) · code in `src/cycle.ts`, `src/app.ts`, `src/main.ts`, `src/ui/today.ts`, `src/store.ts`
 
