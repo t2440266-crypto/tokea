@@ -141,6 +141,20 @@ Tapping a missed activity from an earlier cycle opens a pay-fine flow instead of
 - [x] Test it: /test fine payment mode
 Spec [0004](../specs/0004-fine-payment-mode/index.md) · code in `src/cycle.ts`, `src/app.ts`, `src/main.ts`, `src/ui/today.ts`, `src/notify.ts`
 
+## Slice 4: Control and responsiveness
+
+### 8. Engine on off toggle · needs a decision
+A master ON/OFF switch for the day engine. Fresh day (and fresh app open) starts OFF: nothing runs, no chain, no notifications, no bookings. First ON begins the chain with Pushups at that moment and the day runs; OFF freezes everything in place (clock, prompts, sessions, fines stop accruing); the next ON resumes from the frozen spot. While OFF the app can sit open all day without a single fine being booked.
+
+**Done when:** the toggle is prominent on TODAY; default state each day is OFF; ON starts the chain at the toggle moment with Pushups; OFF freezes the effective clock so no occurrence advances, no prompt or notification fires, and boot reconcile books nothing for off time; ON again resumes exactly where it stopped; state survives reload; a fine session cannot run while OFF.
+- [ ] Design it (spec): `/architect engine on off toggle`
+
+### 9. Faster response
+Profile and fix perceived slowness across the app: taps, screen switches, first open, and boundary timing. Evidence first, then cut what measures slow.
+
+**Done when:** a profiling pass names the hot spots with numbers; the fixes land with before/after measurements; taps and view switches feel immediate; no behavior from specs 0003 or 0004 changes.
+- [ ] Investigate and fix: `/diagnosing-bugs faster response`
+
 ## Deferred
 Out of scope for this build pass, kept so the plan stays honest. These are MASTERPROMPT non goals.
 - **Server, accounts, cloud sync** · none in v1

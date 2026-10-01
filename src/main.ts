@@ -360,7 +360,7 @@ window.setInterval(() => {
       : fmtHMS();
   runtimeTick();
   if (ctx.state.view === 'today') tickToday(ctx);
-}, 1000);
+}, 250);
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
