@@ -1,6 +1,7 @@
 import type { AppCtx } from '../app';
-import { applyEdits, generatePlan } from '../schedule';
-import type { BlockKind, Plan } from '../schedule';
+import { chainSchedule } from '../cycle';
+import { TITLES } from '../schedule';
+import type { BlockKind } from '../schedule';
 import { el } from './dom';
 
 const DAY_SHORT = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -8,18 +9,13 @@ const DAY_SHORT = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 export function renderRecap(root: HTMLElement, ctx: AppCtx): void {
   const date = ctx.state.recapDate ?? ctx.state.date;
   const settings = ctx.state.persisted.settings;
-  const edits = ctx.state.persisted.template.days[date]?.edits;
-  const basePlan = generatePlan(settings, date);
-  const plan: Plan =
-    edits && Object.keys(edits).length > 0 ? applyEdits(basePlan, edits) : basePlan;
   const logs = ctx.state.persisted.logs.filter((l) => l.date === date);
+  const sched = chainSchedule(settings, date);
 
-  const doneIds = new Set(logs.filter((l) => l.outcome === 'done').map((l) => l.blockId));
-  const skippedIds = new Set(logs.filter((l) => l.outcome === 'skipped').map((l) => l.blockId));
-  const plannedMin = plan.blocks.reduce((sum, b) => sum + b.duration, 0);
-  const completedMin = plan.blocks
-    .filter((b) => doneIds.has(b.id))
-    .reduce((sum, b) => sum + b.duration, 0);
+  const plannedMin = sched.reduce((sum, o) => sum + (o.end - o.start) / 60000, 0);
+  const completedMin = logs
+    .filter((l) => l.outcome === 'done')
+    .reduce((sum, l) => sum + settings.durations[l.kind], 0);
   const pct = plannedMin > 0 ? Math.round((completedMin / plannedMin) * 100) : 0;
 
   const d = new Date(`${date}T00:00:00`);
@@ -46,25 +42,39 @@ export function renderRecap(root: HTMLElement, ctx: AppCtx): void {
   root.append(head);
 
   const minutesByKind = new Map<BlockKind, number>();
-  for (const block of plan.blocks) {
-    if (!doneIds.has(block.id)) continue;
-    minutesByKind.set(block.kind, (minutesByKind.get(block.kind) ?? 0) + block.duration);
+  for (const log of logs) {
+    if (log.outcome !== 'done') continue;
+    minutesByKind.set(log.kind, (minutesByKind.get(log.kind) ?? 0) + settings.durations[log.kind]);
   }
 
-  root.append(el('p', { class: 'section-label', text: 'blocks' }));
+  root.append(el('p', { class: 'section-label', text: 'activities' }));
   const list = el('div', { class: 'list' });
-  for (const block of plan.blocks) {
-    const status = doneIds.has(block.id)
-      ? 'done'
-      : skippedIds.has(block.id)
-        ? 'skipped'
-        : 'planned';
-    const row = el('div', { class: 'lrow static' });
-    row.append(el('span', { class: 'lrow-title', text: block.title }));
-    row.append(
+  for (const occ of sched) {
+    const row = logs.find((l) => l.cycleIndex === occ.cycleIndex && l.kind === occ.kind);
+    const status =
+      row?.outcome === 'done'
+        ? 'done'
+        : row?.outcome === 'x'
+          ? 'x'
+          : row?.outcome === 'skipped'
+            ? 'skipped'
+            : 'pending';
+    const cycleTag = occ.cycleIndex > 1 ? ` · c${occ.cycleIndex}` : '';
+    const line = el('div', { class: 'lrow static' });
+    line.append(el('span', { class: 'lrow-title', text: `${TITLES[occ.kind]}${cycleTag}` }));
+    line.append(
       el('span', { class: `lrow-meta ${status === 'done' ? 'is-done' : ''}`, text: status }),
     );
-    list.append(row);
+    list.append(line);
+  }
+  if (sched.length === 0) {
+    list.append(
+      el(
+        'div',
+        { class: 'lrow static' },
+        el('span', { class: 'lrow-meta', text: 'not a visit day' }),
+      ),
+    );
   }
   root.append(list);
 
@@ -120,7 +130,7 @@ export function renderRecap(root: HTMLElement, ctx: AppCtx): void {
   score.append(
     el('p', {
       class: 'score-formula mono',
-      text: `score = completed planned minutes ÷ planned minutes = ${completedMin} ÷ ${plannedMin}`,
+      text: `score = completed minutes ÷ scheduled minutes = ${Math.round(completedMin)} ÷ ${Math.round(plannedMin)}`,
     }),
   );
   root.append(score);

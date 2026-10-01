@@ -36,6 +36,7 @@ describe('loadState', () => {
       kind: 'pushups',
       plannedStart: 540,
       outcome: 'done',
+      cycleIndex: 1,
     });
     state.topics.custom.push({
       id: 'c-1',

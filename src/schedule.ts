@@ -32,6 +32,7 @@ export interface Settings {
   lunchTarget: number;
   lunchWindow: [number, number];
   template: BlockKind[];
+  cycleOrder: BlockKind[];
   noRepeatDays: number;
   pushups: { sets: number; reps: number };
   sound: boolean;
@@ -42,7 +43,10 @@ export interface LogEntry {
   blockId: string;
   kind: BlockKind;
   plannedStart: number;
-  outcome: 'done' | 'skipped';
+  outcome: 'done' | 'skipped' | 'x';
+  cycleIndex: number;
+  auto?: boolean;
+  corrected?: boolean;
   note?: string;
 }
 
@@ -52,7 +56,7 @@ export const TITLES: Record<BlockKind, string> = {
   discussion: 'Discussion (deep)',
   stories: 'Stories',
   dumbbell: 'DIY dumbbell',
-  lunch: 'Lunch out',
+  lunch: 'Food time',
   parallel: 'Parallel vibes',
   recap: 'Recap',
 };
@@ -77,6 +81,7 @@ export function defaultSettings(): Settings {
     lunchTarget: 13 * 60,
     lunchWindow: [12 * 60 + 30, 14 * 60],
     template: ['pushups', 'smoke', 'discussion', 'stories', 'dumbbell', 'parallel'],
+    cycleOrder: ['pushups', 'smoke', 'discussion', 'stories', 'dumbbell', 'lunch', 'parallel'],
     noRepeatDays: 30,
     pushups: { sets: 3, reps: 15 },
     sound: false,

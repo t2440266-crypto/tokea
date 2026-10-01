@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createApp, todayISO } from './app';
 import { STORAGE_KEY, defaultPersisted, loadState, saveState } from './store';
 import type { StorageLike } from './store';
@@ -221,5 +221,100 @@ describe('DayEntry merge invariant', () => {
     const day = loadState(storage).template.days[todayISO()];
     expect(day?.startedId).toBe('pushups');
     expect(Object.keys(day?.edits ?? {})).toHaveLength(0);
+  });
+});
+
+describe('markVerified [spec 0003]', () => {
+  const occ = { kind: 'pushups' as const, cycleIndex: 99 };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-01T07:00:00'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('tick books done and pays one owed fine [covers AC-6]', () => {
+    const state = defaultPersisted();
+    state.fines = { pushups: 2 };
+    const storage = memStorage();
+    saveState(storage, state);
+    const app = createApp(storage);
+    app.markVerified(occ, 'tick');
+    const row = loadState(storage).logs.find((l) => l.cycleIndex === 99);
+    expect(row?.outcome).toBe('done');
+    expect(row?.auto).toBeUndefined();
+    expect(loadState(storage).fines.pushups).toBe(1);
+  });
+
+  test('x books a fine and never pays [covers AC-6]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    app.markVerified(occ, 'x');
+    const row = loadState(storage).logs.find((l) => l.cycleIndex === 99);
+    expect(row?.outcome).toBe('x');
+    expect(row?.auto).toBeUndefined();
+    expect(loadState(storage).fines.pushups).toBe(1);
+  });
+
+  test('timeout booking marks auto true [covers AC-5]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    app.markVerified({ kind: 'smoke', cycleIndex: 98 }, 'x', { auto: true });
+    const row = loadState(storage).logs.find((l) => l.cycleIndex === 98);
+    expect(row?.outcome).toBe('x');
+    expect(row?.auto).toBe(true);
+  });
+
+  test('duplicate verify for the same occurrence is a no-op [covers AC-9]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    app.markVerified(occ, 'x');
+    app.markVerified(occ, 'tick');
+    const rows = loadState(storage).logs.filter((l) => l.cycleIndex === 99);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].outcome).toBe('x');
+  });
+
+  test('same day correction flips x to done and removes one fine [covers AC-6]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    app.markVerified(occ, 'x');
+    expect(loadState(storage).fines.pushups).toBe(1);
+    app.markVerified(occ, 'tick', { correction: true });
+    const row = loadState(storage).logs.find((l) => l.cycleIndex === 99);
+    expect(row?.outcome).toBe('done');
+    expect(row?.corrected).toBe(true);
+    expect(loadState(storage).fines.pushups ?? 0).toBe(0);
+  });
+});
+
+describe('reconcile [spec 0003]', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('books x with auto for every ended unverified activity, once [covers AC-9]', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-01T12:00:00'));
+    const storage = memStorage();
+    const app = createApp(storage);
+    const ended = loadState(storage).logs.filter((l) => l.auto === true && l.outcome === 'x');
+    expect(ended.length).toBeGreaterThan(0);
+    expect(ended.some((l) => l.kind === 'pushups' && l.cycleIndex === 1)).toBe(true);
+    expect(loadState(storage).fines.pushups).toBeGreaterThan(0);
+    const countBefore = loadState(storage).logs.length;
+    app.reconcile();
+    expect(loadState(storage).logs.length).toBe(countBefore);
+  });
+
+  test('does nothing on a non visit day [covers AC-10]', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-04T12:00:00'));
+    const storage = memStorage();
+    createApp(storage);
+    expect(loadState(storage).logs.filter((l) => l.auto === true)).toHaveLength(0);
   });
 });

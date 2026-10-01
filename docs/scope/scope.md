@@ -23,6 +23,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 2 | Drag to reorder the plan | Slice 1 | done |
 | 3 | Template order editor | Slice 1 | done |
 | 4 | Lighthouse audit pass | Slice 1 | done |
+| 5 | Automatic cycling engine | Slice 2 | in-progress |
 
 ## Existing
 
@@ -92,6 +93,24 @@ Prove the premium floor with a real audit: npx one off run against the local pre
 - [x] Build it: `/develop lighthouse audit pass`
 - [x] Verify it: lighthouse@11 run on local preview — performance 97, accessibility 100, best practices 100, PWA 100, FCP 988ms, installable 1, maskable 1, console errors 0; blockers fixed (maskable purpose, static shell, inlined CSS)
 Code in `public/manifest.webmanifest`, `index.html`
+
+## Slice 2: Automatic cycling engine
+
+### 5. Automatic cycling engine · in-progress
+Endless activity loop on visit days: each activity auto-starts on its own clock with a one-time notification, shows its duration and finish time, and closes with a tick or X verification prompt (5 minute timeout auto marks X) that locks the activity and books a fine to pay when the cycle reaches that activity again. Lunch out is renamed Food time everywhere. Manual Start, Done, and Skip controls are removed; the app runs itself.
+
+**Done when:** the cycle wraps from the last activity back to Pushups with no app input; every activity shows its duration and finish time; a brief one-time notification fires when each activity starts; a tick/X prompt appears 10 minutes before the activity ends, disappears after 5 minutes unconfirmed and marks X; X locks the activity, books a fine visible on that activity when the next cycle reaches it, and a tick locks it clean; rename to Food time is visible across the app.
+
+- [x] Design it (spec): `/architect automatic cycling engine`
+- [x] Build it: /develop automatic cycling engine
+   - [x] Pure chain engine: timeline, prompt window, wrap, window stop + tests (AC-1, AC-2, AC-10)
+   - [x] Persistence: cycleOrder, fines, extended LogEntry, markVerified, boot reconcile + tests (AC-5, AC-6, AC-9)
+   - [x] TODAY auto run: remove Start/Done/Skip, clock ticker, duration/until displays, Food time rename, fine badges (AC-1, AC-7, AC-8)
+   - [x] Notification layer: permission, start and prompt notifications, in-app banner, SW actions, timeout (AC-3, AC-4, AC-5)
+   - [x] Full AC-tagged suite green (AC-4, AC-6, AC-9)
+- [ ] Verify it: /check verify automatic cycling engine
+- [ ] Test it: /test automatic cycling engine
+Spec [0003](../specs/0003-automatic-cycling-engine/index.md) · code in `src/cycle.ts`, `src/main.ts`, `src/ui/today.ts`, `src/notify.ts`, `public/sw.js`
 
 ## Deferred
 Out of scope for this build pass, kept so the plan stays honest. These are MASTERPROMPT non goals.

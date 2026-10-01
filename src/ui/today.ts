@@ -1,159 +1,28 @@
 import type { AppCtx } from '../app';
-import { currentBlock, isVisitDay } from '../schedule';
-import { beep, el, fmtClock, fmtRemaining, haptic } from './dom';
+import { TITLES, isVisitDay } from '../schedule';
+import type { BlockKind, LogEntry } from '../schedule';
+import { occurrenceAt, windowBounds } from '../cycle';
+import type { ChainOccurrence } from '../cycle';
+import { el, fmtRemaining, haptic } from './dom';
 
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-let expandedId: string | null = null;
-let skipPromptFor: string | null = null;
-
-const LIFT_MS = 350;
-const SLOP_PX = 10;
-
-interface Gesture {
-  pointerId: number;
-  row: HTMLElement;
-  list: HTMLElement;
-  startX: number;
-  startY: number;
-  timer: number;
-  lifted: boolean;
-  onMove: ((e: PointerEvent) => void) | null;
-  onUp: ((e: PointerEvent) => void) | null;
-  onCancel?: () => void;
+function fmtMs(ms: number): string {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-let gesture: Gesture | null = null;
-let suppressClick = false;
-
-function abandonGesture(): void {
-  if (!gesture) return;
-  window.clearTimeout(gesture.timer);
-  if (gesture.lifted) {
-    suppressClick = true;
-    window.setTimeout(() => {
-      suppressClick = false;
-    }, 350);
-  }
-  if (gesture.onMove) window.removeEventListener('pointermove', gesture.onMove);
-  if (gesture.onUp) window.removeEventListener('pointerup', gesture.onUp);
-  if (gesture.onCancel) window.removeEventListener('pointercancel', gesture.onCancel);
-  gesture.list.classList.remove('lifting');
-  gesture.row.classList.remove('lifted');
-  gesture = null;
+function fineBadge(fines: Record<string, number>, kind: BlockKind): string | null {
+  const owed = fines[kind] ?? 0;
+  if (owed <= 0) return null;
+  return owed === 1 ? '1 fine to pay' : `fines ${owed}`;
 }
 
-function cleanupGesture(write: boolean, ctx: AppCtx): void {
-  if (!gesture) return;
-  const g = gesture;
-  window.clearTimeout(g.timer);
-  if (g.onMove) window.removeEventListener('pointermove', g.onMove);
-  if (g.onUp) window.removeEventListener('pointerup', g.onUp);
-  if (g.onCancel) window.removeEventListener('pointercancel', g.onCancel);
-  try {
-    g.row.releasePointerCapture(g.pointerId);
-  } catch {
-    /* capture already released */
-  }
-  let order: string[] = [];
-  if (g.lifted) {
-    suppressClick = true;
-    window.setTimeout(() => {
-      suppressClick = false;
-    }, 350);
-    g.list.classList.remove('lifting');
-    order = [...g.list.querySelectorAll<HTMLElement>('[data-block-id]')].map(
-      (el) => el.dataset.blockId!,
-    );
-  }
-  g.row.classList.remove('lifted');
-  gesture = null;
-  if (g.lifted && write) ctx.applyOrder(order);
-  else ctx.emit();
-}
-
-function moveGap(g: Gesture, clientY: number): void {
-  const rows = [...g.list.querySelectorAll<HTMLElement>('.prow')].filter((r) => r !== g.row);
-  let before: ChildNode | null = null;
-  for (const row of rows) {
-    const rect = row.getBoundingClientRect();
-    if (clientY < rect.top + rect.height / 2) {
-      before = row;
-      break;
-    }
-  }
-  g.list.insertBefore(g.row, before);
-}
-
-function onPointerDown(e: PointerEvent, list: HTMLElement, ctx: AppCtx): void {
-  if (gesture || e.button !== 0) return;
-  if ((e.target as HTMLElement).closest('.rowtools')) return;
-  const row = (e.target as HTMLElement).closest<HTMLElement>('.prow');
-  if (!row) return;
-  const g: Gesture = {
-    pointerId: e.pointerId,
-    row,
-    list,
-    startX: e.clientX,
-    startY: e.clientY,
-    timer: 0,
-    lifted: false,
-    onMove: null,
-    onUp: null,
-  };
-  g.timer = window.setTimeout(() => {
-    if (gesture !== g) return;
-    g.lifted = true;
-    row.classList.add('lifted');
-    list.classList.add('lifting');
-    try {
-      row.setPointerCapture(g.pointerId);
-    } catch {
-      /* capture unsupported */
-    }
-    g.onMove = (ev: PointerEvent) => {
-      if (gesture !== g || ev.pointerId !== g.pointerId) return;
-      if (!g.lifted) return;
-      ev.preventDefault();
-      moveGap(g, ev.clientY);
-    };
-    g.onUp = (ev: PointerEvent) => {
-      if (gesture !== g || ev.pointerId !== g.pointerId) return;
-      cleanupGesture(true, ctx);
-    };
-    const onCancel = () => {
-      if (gesture !== g) return;
-      cleanupGesture(false, ctx);
-    };
-    g.onCancel = onCancel;
-    window.addEventListener('pointermove', g.onMove, { passive: false });
-    window.addEventListener('pointerup', g.onUp);
-    window.addEventListener('pointercancel', onCancel);
-  }, LIFT_MS);
-
-  const preMove = (ev: PointerEvent) => {
-    if (gesture !== g || g.lifted) return;
-    const dx = Math.abs(ev.clientX - g.startX);
-    const dy = Math.abs(ev.clientY - g.startY);
-    if (dx > SLOP_PX || dy > SLOP_PX) {
-      window.clearTimeout(g.timer);
-      window.removeEventListener('pointermove', preMove);
-    }
-  };
-  const preUp = () => {
-    if (gesture !== g) return;
-    window.clearTimeout(g.timer);
-    window.removeEventListener('pointermove', preMove);
-    window.removeEventListener('pointerup', preUp);
-    if (!g.lifted) gesture = null;
-  };
-  window.addEventListener('pointermove', preMove);
-  window.addEventListener('pointerup', preUp);
-  gesture = g;
+function rowFor(logs: LogEntry[], cycleIndex: number, kind: BlockKind): LogEntry | undefined {
+  return logs.find((l) => l.cycleIndex === cycleIndex && l.kind === kind);
 }
 
 export function renderToday(root: HTMLElement, ctx: AppCtx): void {
-  abandonGesture();
   const settings = ctx.state.persisted.settings;
   const visit = isVisitDay(settings, ctx.state.date);
   const dayName = DAYS[new Date(`${ctx.state.date}T00:00:00`).getDay()];
@@ -169,7 +38,7 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
   if (!visit) {
     hero.append(
       el('p', { class: 'hero-title', text: 'No visit today.' }),
-      el('p', { class: 'hero-sub', text: 'The plan runs on visit days only.' }),
+      el('p', { class: 'hero-sub', text: 'The loop runs on visit days only.' }),
     );
     const open = el('button', {
       class: 'btn btn-primary btn-wide',
@@ -182,18 +51,39 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
     return;
   }
 
-  const plan = ctx.plan();
-  const done = new Set(ctx.doneIds());
-  const { current, next, remaining } = currentBlock(plan, ctx.state.now, ctx.doneIds());
+  const sched = ctx.schedule();
+  const nowMs = ctx.state.nowMs;
+  const bounds = windowBounds(settings, ctx.state.date);
+  const current = occurrenceAt(sched, nowMs);
+  const logs = ctx.todayLogs();
+  const fines = ctx.fines();
+
+  if (bounds && nowMs < bounds.start && !current) {
+    const first = sched[0];
+    hero.append(el('p', { class: 'eyebrow', text: 'up next' }));
+    if (first) {
+      hero.append(el('p', { class: 'hero-title', text: TITLES[first.kind] }));
+      hero.append(
+        el('p', {
+          class: 'hero-sub mono',
+          text: `window opens ${fmtMs(bounds.start)} · loop starts in ${Math.max(0, Math.ceil((bounds.start - nowMs) / 60000))} min`,
+        }),
+      );
+    }
+    root.append(hero);
+    appendTail(ctx, sched, logs, fines, current, nowMs, root);
+    return;
+  }
 
   if (current) {
-    const started = ctx.state.started[current.id] === true;
-    hero.append(el('p', { class: 'eyebrow accent', text: 'now' }));
-    hero.append(el('p', { class: 'hero-title', text: current.title }));
+    const cycleLabel = current.cycleIndex > 1 ? ` · cycle ${current.cycleIndex}` : '';
+    hero.append(el('p', { class: 'eyebrow accent', text: `now${cycleLabel}` }));
+    hero.append(el('p', { class: 'hero-title', text: TITLES[current.kind] }));
 
-    const ringWrap = el('div', { class: 'ring-wrap' });
-    const dur = current.duration || 1;
+    const remaining = (current.end - nowMs) / 60000;
+    const dur = (current.end - current.start) / 60000;
     const c = 2 * Math.PI * 54;
+    const ringWrap = el('div', { class: 'ring-wrap' });
     ringWrap.innerHTML = `
       <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
         <circle class="ring-track" cx="60" cy="60" r="54"></circle>
@@ -201,74 +91,21 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
           stroke-dasharray="${c.toFixed(1)}"
           stroke-dashoffset="${(c * (1 - Math.min(1, Math.max(0, remaining / dur)))).toFixed(1)}"></circle>
       </svg>
-      <span class="ring-num mono" data-remaining data-dur="${dur}">${fmtRemaining(remaining)}</span>`;
+      <span class="ring-num mono" data-remaining data-end="${current.end}" data-dur="${dur}">${fmtRemaining(remaining)}</span>`;
     hero.append(ringWrap);
-
-    const actions = el('div', { class: 'actions' });
-    if (!started) {
-      const start = el('button', {
-        class: 'btn btn-primary btn-wide',
-        type: 'button',
-        text: 'Start',
-      });
-      start.addEventListener('click', () => ctx.startBlock(current.id));
-      actions.append(start);
-    } else {
-      const doneBtn = el('button', { class: 'btn btn-primary', type: 'button', text: 'Done' });
-      doneBtn.addEventListener('click', () => {
-        haptic();
-        if (ctx.state.persisted.settings.sound) beep();
-        ctx.logOutcome(current.id, 'done');
-      });
-      const skipBtn = el('button', { class: 'btn', type: 'button', text: 'Skip' });
-      skipBtn.addEventListener('click', () => {
-        skipPromptFor = current.id;
-        ctx.logOutcome(current.id, 'skipped');
-      });
-      const plus = el('button', { class: 'btn', type: 'button', text: '+5' });
-      plus.addEventListener('click', () => ctx.extendBlock(current.id));
-      actions.append(doneBtn, skipBtn, plus);
-    }
-    hero.append(actions);
-
-    if (skipPromptFor) {
-      const input = el('input', {
-        class: 'input',
-        type: 'text',
-        placeholder: 'Note (optional)',
-      }) as HTMLInputElement;
-      const save = el('button', { class: 'btn btn-small', type: 'button', text: 'Save' });
-      const dismiss = el('button', {
-        class: 'btn btn-small btn-ghost',
-        type: 'button',
-        text: 'Dismiss',
-      });
-      const target = skipPromptFor;
-      save.addEventListener('click', () => {
-        ctx.setLogNote(target, input.value.trim());
-        skipPromptFor = null;
-        ctx.emit();
-      });
-      dismiss.addEventListener('click', () => {
-        skipPromptFor = null;
-        ctx.emit();
-      });
-      hero.append(el('div', { class: 'skip-note' }, input, save, dismiss));
-    }
-  } else if (next) {
-    const until = Math.max(0, Math.ceil(next.start - ctx.state.now));
-    hero.append(el('p', { class: 'eyebrow', text: 'up next' }));
-    hero.append(el('p', { class: 'hero-title', text: next.title }));
     hero.append(
       el('p', {
         class: 'hero-sub mono',
-        'data-until': String(next.start),
-        text: `${fmtClock(next.start)} · in ${until} min`,
+        text: `until ${fmtMs(current.end)} · ${Math.round(dur)} min`,
       }),
     );
+    root.append(hero);
   } else {
-    hero.append(el('p', { class: 'hero-title', text: 'Plan finished for today.' }));
-    hero.append(el('p', { class: 'hero-sub', text: 'Everything scheduled has run its clock.' }));
+    hero.append(el('p', { class: 'eyebrow', text: 'loop paused' }));
+    hero.append(el('p', { class: 'hero-title', text: 'Visit window closed.' }));
+    hero.append(
+      el('p', { class: 'hero-sub', text: 'The loop starts again at the next window open.' }),
+    );
     const recap = el('button', {
       class: 'btn btn-primary btn-wide',
       type: 'button',
@@ -276,9 +113,21 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
     });
     recap.addEventListener('click', () => ctx.setView('recap'));
     hero.append(recap);
+    root.append(hero);
   }
-  root.append(hero);
 
+  appendTail(ctx, sched, logs, fines, current, nowMs, root);
+}
+
+function appendTail(
+  ctx: AppCtx,
+  sched: ChainOccurrence[],
+  logs: LogEntry[],
+  fines: Record<string, number>,
+  current: ChainOccurrence | null,
+  nowMs: number,
+  root: HTMLElement,
+): void {
   const topic = ctx.state.activeTopicId ? ctx.topicById(ctx.state.activeTopicId) : undefined;
   if (topic) {
     const peek = el('button', { class: 'peek', type: 'button' });
@@ -288,143 +137,109 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
     root.append(peek);
   }
 
+  const next = sched.find((o) => o.start > nowMs);
   if (next) {
     root.append(
       el(
         'div',
         { class: 'next-strip' },
         el('span', { class: 'eyebrow', text: 'next' }),
-        el('span', { class: 'mono', text: fmtClock(next.start) }),
-        el('span', { text: next.title }),
+        el('span', { class: 'mono', text: fmtMs(next.start) }),
+        el('span', { text: TITLES[next.kind] }),
+        el('span', { class: 'mono dim', text: `until ${fmtMs(next.end)}` }),
       ),
     );
   }
 
   const timeline = el('div', { class: 'timeline' });
-  for (const block of plan.blocks) {
-    const state = done.has(block.id)
-      ? 'done'
-      : current && current.id === block.id
-        ? 'now'
-        : 'future';
+  for (const occ of sched) {
+    const row = rowFor(logs, occ.cycleIndex, occ.kind);
+    const state =
+      row?.outcome === 'done'
+        ? 'done'
+        : row?.outcome === 'x'
+          ? 'miss'
+          : current?.key === occ.key
+            ? 'now'
+            : 'future';
     const seg = el(
       'div',
-      { class: `seg seg-${state}`, style: `flex-grow:${block.duration};` },
-      el('span', { class: 'mono seg-time', text: fmtClock(block.start) }),
-      el('span', { class: 'seg-title', text: block.title }),
+      { class: `seg seg-${state}`, style: `flex-grow:${(occ.end - occ.start) / 60000};` },
+      el('span', { class: 'mono seg-time', text: fmtMs(occ.start) }),
+      el('span', { class: 'seg-title', text: TITLES[occ.kind] }),
     );
-    seg.title = `${block.title} ${fmtClock(block.start)}`;
+    seg.title = `${TITLES[occ.kind]} until ${fmtMs(occ.end)}`;
     timeline.append(seg);
   }
   root.append(timeline);
 
-  const resolved = plan.blocks.filter((b) => done.has(b.id)).length;
+  const verified = sched.filter((o) => rowFor(logs, o.cycleIndex, o.kind)).length;
   root.append(
-    el('p', { class: 'progress mono', text: `plan · ${resolved} of ${plan.blocks.length} blocks` }),
+    el('p', { class: 'progress mono', text: `verified ${verified} of ${sched.length} today` }),
   );
+
+  const nextUnpaid = new Map<BlockKind, string>();
+  for (const o of sched) {
+    if (o.end < nowMs) continue;
+    if (rowFor(logs, o.cycleIndex, o.kind)) continue;
+    if ((fines[o.kind] ?? 0) > 0 && !nextUnpaid.has(o.kind)) nextUnpaid.set(o.kind, o.key);
+  }
 
   const list = el('div', { class: 'planlist' });
-  for (const block of plan.blocks) {
-    const logged = done.has(block.id);
-    const isNow = current !== null && current.id === block.id;
-    const row = el('div', {
-      class: `prow${expandedId === block.id ? ' open' : ''}`,
-      'data-block-id': block.id,
+  for (const occ of sched) {
+    const row = rowFor(logs, occ.cycleIndex, occ.kind);
+    const badge = nextUnpaid.get(occ.kind) === occ.key ? fineBadge(fines, occ.kind) : null;
+    const cycleTag = occ.cycleIndex > 1 ? ` · c${occ.cycleIndex}` : '';
+    let status = fmtMs(occ.end);
+    let statusClass = '';
+    if (row?.outcome === 'done') {
+      status = 'done';
+      statusClass = 'is-done';
+    } else if (row?.outcome === 'x') {
+      status = 'x';
+      statusClass = 'is-miss';
+    } else if (current?.key === occ.key) {
+      status = 'running';
+      statusClass = 'is-now';
+    }
+    const prow = el('div', { class: 'prow' });
+    const head = el(row?.outcome === 'x' ? 'button' : 'div', {
+      class: 'prow-head static',
+      type: row?.outcome === 'x' ? 'button' : undefined,
     });
-    const head = el('button', { class: 'prow-head', type: 'button' });
-    head.append(el('span', { class: 'mono prow-time', text: fmtClock(block.start) }));
-    head.append(el('span', { class: 'prow-title', text: block.title }));
-    head.append(
-      el('span', {
-        class: `prow-status ${logged ? 'is-done' : isNow ? 'is-now' : ''}`,
-        text: logged ? 'done' : isNow ? 'now' : `${block.duration}m`,
-      }),
-    );
-    head.addEventListener('click', () => {
-      if (suppressClick) {
-        suppressClick = false;
-        return;
-      }
-      expandedId = expandedId === block.id ? null : block.id;
-      ctx.emit();
-    });
-    row.append(head);
-    if (expandedId === block.id) {
-      const tools = el('div', { class: 'rowtools' });
-      const earlier = el('button', { class: 'btn btn-small', type: 'button', text: 'Earlier' });
-      earlier.addEventListener('click', () => ctx.moveBlock(block.id, -1));
-      const later = el('button', { class: 'btn btn-small', type: 'button', text: 'Later' });
-      later.addEventListener('click', () => ctx.moveBlock(block.id, 1));
-      const plus = el('button', { class: 'btn btn-small', type: 'button', text: '+5 min' });
-      plus.addEventListener('click', () => ctx.extendBlock(block.id));
-      tools.append(earlier, later, plus);
-      if (!logged) {
-        const doneBtn = el('button', { class: 'btn btn-small', type: 'button', text: 'Done' });
-        doneBtn.addEventListener('click', () => {
+    head.append(el('span', { class: 'mono prow-time', text: fmtMs(occ.start) }));
+    head.append(el('span', { class: 'prow-title', text: `${TITLES[occ.kind]}${cycleTag}` }));
+    head.append(el('span', { class: `prow-status ${statusClass}`, text: status }));
+    if (row?.outcome === 'x') {
+      head.classList.add('correctable');
+      head.title = 'Tap to correct this X for today';
+      head.addEventListener('click', () => {
+        if (
+          window.confirm(
+            `Mark ${TITLES[occ.kind]} (cycle ${occ.cycleIndex}) as done instead? The fine comes off.`,
+          )
+        ) {
           haptic();
-          if (ctx.state.persisted.settings.sound) beep();
-          ctx.logOutcome(block.id, 'done');
-        });
-        const skipBtn = el('button', { class: 'btn btn-small', type: 'button', text: 'Skip' });
-        skipBtn.addEventListener('click', () => {
-          skipPromptFor = block.id;
-          ctx.logOutcome(block.id, 'skipped');
-        });
-        tools.append(doneBtn, skipBtn);
-      }
-      row.append(tools);
+          ctx.markVerified(occ, 'tick', { correction: true });
+        }
+      });
     }
-    list.append(row);
+    prow.append(head);
+    if (badge) {
+      prow.append(el('span', { class: 'fine-badge', text: badge }));
+    }
+    list.append(prow);
   }
-  list.addEventListener('pointerdown', (e) => onPointerDown(e, list, ctx));
-  list.addEventListener(
-    'touchmove',
-    (e) => {
-      if (gesture?.lifted) e.preventDefault();
-    },
-    { passive: false },
-  );
   root.append(list);
-
-  if (plan.unscheduled.length > 0) {
-    root.append(el('p', { class: 'section-label', text: 'not scheduled' }));
-    const extra = el('div', { class: 'planlist' });
-    for (const item of plan.unscheduled) {
-      extra.append(
-        el(
-          'div',
-          { class: 'prow' },
-          el(
-            'div',
-            { class: 'prow-head static' },
-            el('span', { class: 'mono prow-time', text: '--:--' }),
-            el('span', { class: 'prow-title', text: item.title }),
-            el('span', { class: 'prow-status', text: `${item.duration}m` }),
-          ),
-        ),
-      );
-    }
-    root.append(extra);
-  }
-
-  if (ctx.isDirty()) {
-    const regen = el('button', {
-      class: 'btn btn-ghost btn-wide regen',
-      type: 'button',
-      text: 'Regenerate plan',
-    });
-    regen.addEventListener('click', () => {
-      if (window.confirm('Regenerate plan? Manual edits for today are removed.')) ctx.regenDay();
-    });
-    root.append(regen);
-  }
 }
 
 export function tickToday(ctx: AppCtx): void {
-  const { current, next, remaining } = currentBlock(ctx.plan(), ctx.state.now, ctx.doneIds());
+  const nowMs = ctx.state.nowMs;
+  const current = occurrenceAt(ctx.schedule(), nowMs);
   const remainingEl = document.querySelector<HTMLElement>('[data-remaining]');
   if (remainingEl && current) {
-    const dur = Number(remainingEl.dataset.dur) || current.duration || 1;
+    const dur = Number(remainingEl.dataset.dur) || (current.end - current.start) / 60000;
+    const remaining = (current.end - nowMs) / 60000;
     remainingEl.textContent = fmtRemaining(remaining);
     const ring = document.querySelector<SVGCircleElement>('[data-ring]');
     if (ring) {
@@ -432,10 +247,5 @@ export function tickToday(ctx: AppCtx): void {
       const frac = Math.min(1, Math.max(0, remaining / dur));
       ring.setAttribute('stroke-dashoffset', (c * (1 - frac)).toFixed(1));
     }
-  }
-  const until = document.querySelector<HTMLElement>('[data-until]');
-  if (until && next && !current) {
-    const mins = Math.max(0, Math.ceil(next.start - ctx.state.now));
-    until.textContent = `${fmtClock(next.start)} · in ${mins} min`;
   }
 }

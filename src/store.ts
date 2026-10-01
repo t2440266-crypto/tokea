@@ -22,6 +22,7 @@ export interface Persisted {
   topicHistory: HistoryEntry[];
   logs: LogEntry[];
   savedTopicIds: string[];
+  fines: Record<string, number>;
 }
 
 export function defaultPersisted(): Persisted {
@@ -34,6 +35,7 @@ export function defaultPersisted(): Persisted {
     topicHistory: [],
     logs: [],
     savedTopicIds: [],
+    fines: {},
   };
 }
 
@@ -97,6 +99,7 @@ export function migrate(raw: unknown): Persisted {
     topicHistory: raw.topicHistory as HistoryEntry[],
     logs: raw.logs as LogEntry[],
     savedTopicIds: Array.isArray(raw.savedTopicIds) ? (raw.savedTopicIds as string[]) : [],
+    fines: isRecord(raw.fines) ? (raw.fines as Record<string, number>) : {},
   };
 }
 

@@ -1,5 +1,7 @@
 import { applyEdits, defaultSettings, generatePlan, isVisitDay } from './schedule';
-import type { LogEntry, Plan, Settings } from './schedule';
+import type { BlockKind, LogEntry, Plan, Settings } from './schedule';
+import { chainSchedule } from './cycle';
+import type { ChainOccurrence } from './cycle';
 import { loadState, saveState, defaultPersisted } from './store';
 import type { Persisted, StorageLike } from './store';
 import { SEED_TOPICS } from './seedTopics';
@@ -24,6 +26,7 @@ export interface AppCtx {
     persisted: Persisted;
     view: View;
     now: number;
+    nowMs: number;
     date: string;
     started: Record<string, true>;
     topicFilter: Category | 'all';
@@ -45,6 +48,14 @@ export interface AppCtx {
   setLogNote(blockId: string, note: string): void;
   startBlock(id: string): void;
   applyOrder(idList: string[]): void;
+  markVerified(
+    occ: Pick<ChainOccurrence, 'kind' | 'cycleIndex'>,
+    result: 'tick' | 'x',
+    opts?: { correction?: boolean; auto?: boolean },
+  ): void;
+  reconcile(): void;
+  schedule(): ChainOccurrence[];
+  fines(): Record<string, number>;
   extendBlock(id: string): void;
   moveBlock(id: string, dir: -1 | 1): void;
   regenDay(): void;
@@ -64,7 +75,7 @@ export interface AppCtx {
   resetData(): void;
 }
 
-export function createApp(rootStorage: StorageLike): AppCtx {
+export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): AppCtx {
   const persisted = loadState(rootStorage);
   const listeners = new Set<() => void>();
 
@@ -72,6 +83,7 @@ export function createApp(rootStorage: StorageLike): AppCtx {
     persisted,
     view: 'today',
     now: minutesNow(),
+    nowMs: opts?.nowMs ?? Date.now(),
     date: todayISO(),
     started: {},
     topicFilter: 'all',
@@ -176,6 +188,7 @@ export function createApp(rootStorage: StorageLike): AppCtx {
       kind: block.kind,
       plannedStart: block.start,
       outcome,
+      cycleIndex: 1,
     };
     if (note) entry.note = note;
     persisted.logs.push(entry);
@@ -183,6 +196,85 @@ export function createApp(rootStorage: StorageLike): AppCtx {
     if (day.startedId === blockId) delete day.startedId;
     delete state.started[blockId];
     emit();
+  }
+
+  function findRow(date: string, cycleIndex: number, kind: BlockKind): LogEntry | undefined {
+    return persisted.logs.find(
+      (l) => l.date === date && l.cycleIndex === cycleIndex && l.kind === kind,
+    );
+  }
+
+  function toLocalMinutes(ms: number): number {
+    const d = new Date(ms);
+    return d.getHours() * 60 + d.getMinutes();
+  }
+
+  function markVerified(
+    occ: Pick<ChainOccurrence, 'kind' | 'cycleIndex'>,
+    result: 'tick' | 'x',
+    opts?: { correction?: boolean; auto?: boolean },
+  ): void {
+    const existing = findRow(state.date, occ.cycleIndex, occ.kind);
+    if (opts?.correction) {
+      if (!existing || existing.outcome !== 'x') return;
+      existing.outcome = 'done';
+      existing.corrected = true;
+      if ((persisted.fines[occ.kind] ?? 0) > 0) {
+        persisted.fines[occ.kind] = persisted.fines[occ.kind] - 1;
+      }
+      emit();
+      return;
+    }
+    if (existing) return;
+    const occurrence = chainSchedule(persisted.settings, state.date).find(
+      (o) => o.cycleIndex === occ.cycleIndex && o.kind === occ.kind,
+    );
+    const entry: LogEntry = {
+      date: state.date,
+      blockId: occ.kind,
+      kind: occ.kind,
+      plannedStart: occurrence ? toLocalMinutes(occurrence.start) : 0,
+      outcome: result === 'tick' ? 'done' : 'x',
+      cycleIndex: occ.cycleIndex,
+    };
+    if (result === 'x') {
+      if (opts?.auto === true) entry.auto = true;
+      persisted.fines[occ.kind] = (persisted.fines[occ.kind] ?? 0) + 1;
+    } else if ((persisted.fines[occ.kind] ?? 0) > 0) {
+      persisted.fines[occ.kind] = persisted.fines[occ.kind] - 1;
+    }
+    persisted.logs.push(entry);
+    emit();
+  }
+
+  function reconcile(): void {
+    const nowMs = state.nowMs;
+    const daySchedule = chainSchedule(persisted.settings, state.date);
+    let changed = false;
+    for (const occ of daySchedule) {
+      if (occ.end > nowMs) continue;
+      if (findRow(state.date, occ.cycleIndex, occ.kind)) continue;
+      persisted.logs.push({
+        date: state.date,
+        blockId: occ.kind,
+        kind: occ.kind,
+        plannedStart: toLocalMinutes(occ.start),
+        outcome: 'x',
+        cycleIndex: occ.cycleIndex,
+        auto: true,
+      });
+      persisted.fines[occ.kind] = (persisted.fines[occ.kind] ?? 0) + 1;
+      changed = true;
+    }
+    if (changed) emit();
+  }
+
+  function schedule(): ChainOccurrence[] {
+    return chainSchedule(persisted.settings, state.date);
+  }
+
+  function fines(): Record<string, number> {
+    return persisted.fines;
   }
 
   function setLogNote(blockId: string, note: string): void {
@@ -252,6 +344,7 @@ export function createApp(rootStorage: StorageLike): AppCtx {
   }
 
   hydrateStarted();
+  reconcile();
 
   return {
     state,
@@ -281,6 +374,10 @@ export function createApp(rootStorage: StorageLike): AppCtx {
     },
     extendBlock,
     applyOrder,
+    markVerified,
+    reconcile,
+    schedule,
+    fines,
     moveBlock,
     regenDay,
     isDirty() {

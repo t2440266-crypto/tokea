@@ -12,7 +12,7 @@ const DURATION_FIELDS: { kind: BlockKind; label: string }[] = [
   { kind: 'discussion', label: 'Discussion' },
   { kind: 'stories', label: 'Stories' },
   { kind: 'dumbbell', label: 'Dumbbell' },
-  { kind: 'lunch', label: 'Lunch out' },
+  { kind: 'lunch', label: 'Food time' },
   { kind: 'parallel', label: 'Parallel vibes' },
   { kind: 'recap', label: 'Recap' },
 ];
@@ -96,14 +96,14 @@ export function renderSettings(root: HTMLElement, ctx: AppCtx): void {
     ),
   );
 
-  root.append(el('p', { class: 'section-label', text: 'plan order' }));
+  root.append(el('p', { class: 'section-label', text: 'loop order' }));
   root.append(
     el('p', {
       class: 'foot-note',
-      text: 'Default order for generating flexible blocks. Lunch and recap always pin themselves.',
+      text: 'Order of the repeating activity chain on visit days. The loop wraps from the last entry back to the first inside the visit window.',
     }),
   );
-  s.template.forEach((kind, idx) => {
+  s.cycleOrder.forEach((kind, idx) => {
     const row = el('div', { class: 'lrow static' });
     row.append(el('span', { class: 'lrow-title', text: TITLES[kind] }));
     const tools = el('span', { class: 'order-tools' });
@@ -115,9 +115,9 @@ export function renderSettings(root: HTMLElement, ctx: AppCtx): void {
     }) as HTMLButtonElement;
     up.disabled = idx === 0;
     up.addEventListener('click', () => {
-      const next = [...s.template];
+      const next = [...s.cycleOrder];
       [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-      ctx.updateSettings({ template: next });
+      ctx.updateSettings({ cycleOrder: next });
     });
     const down = el('button', {
       class: 'btn btn-small',
@@ -125,18 +125,18 @@ export function renderSettings(root: HTMLElement, ctx: AppCtx): void {
       text: '↓',
       'aria-label': `Move ${TITLES[kind]} later`,
     }) as HTMLButtonElement;
-    down.disabled = idx === s.template.length - 1;
+    down.disabled = idx === s.cycleOrder.length - 1;
     down.addEventListener('click', () => {
-      const next = [...s.template];
+      const next = [...s.cycleOrder];
       [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]];
-      ctx.updateSettings({ template: next });
+      ctx.updateSettings({ cycleOrder: next });
     });
     tools.append(up, down);
     row.append(tools);
     root.append(row);
   });
 
-  root.append(el('p', { class: 'section-label', text: 'lunch' }));
+  root.append(el('p', { class: 'section-label', text: 'food time' }));
   root.append(
     el(
       'div',

@@ -1,7 +1,7 @@
 import type { AppCtx } from '../app';
 import { todayISO } from '../app';
-import { applyEdits, generatePlan, isVisitDay, weekStats } from '../schedule';
-import type { Plan } from '../schedule';
+import { chainSchedule } from '../cycle';
+import { generatePlan, isVisitDay, weekStats } from '../schedule';
 import { el, fmtClock } from './dom';
 
 const DAY_SHORT = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -20,30 +20,36 @@ export function renderWeek(root: HTMLElement, ctx: AppCtx): void {
     weekDates.push(todayISO(d));
   }
 
-  const days = weekDates
+  const rows = weekDates
     .filter((ds) => isVisitDay(settings, ds))
     .map((ds) => {
-      const edits = ctx.state.persisted.template.days[ds]?.edits;
-      const basePlan = generatePlan(settings, ds);
-      const plan: Plan =
-        edits && Object.keys(edits).length > 0 ? applyEdits(basePlan, edits) : basePlan;
+      const sched = chainSchedule(settings, ds);
       const logs = ctx.state.persisted.logs.filter((l) => l.date === ds);
-      return { date: ds, plan, logs };
+      const plannedMin = sched.reduce((sum, o) => sum + (o.end - o.start) / 60000, 0);
+      const doneMin = logs
+        .filter((l) => l.outcome === 'done')
+        .reduce((sum, l) => sum + settings.durations[l.kind], 0);
+      const plan = generatePlan(settings, ds);
+      return { date: ds, plan, logs, plannedMin, doneMin };
     });
 
-  const stats = weekStats(settings, days);
+  const stats = weekStats(
+    settings,
+    rows.map((r) => ({ date: r.date, plan: r.plan, logs: r.logs })),
+  );
+  const warnings = stats.warnings.filter((w) => !w.startsWith('Recap'));
 
-  if (stats.warnings.length > 0) {
+  if (warnings.length > 0) {
     const banner = el('div', { class: 'banner' });
     banner.append(el('p', { class: 'eyebrow', text: 'this week' }));
-    for (const w of stats.warnings) banner.append(el('p', { class: 'banner-line', text: w }));
+    for (const w of warnings) banner.append(el('p', { class: 'banner-line', text: w }));
     root.append(banner);
   } else {
     root.append(el('p', { class: 'banner ok', text: 'Coverage on track this week.' }));
   }
 
   const grid = el('div', { class: 'week-grid' });
-  stats.days.forEach((row) => {
+  rows.forEach((row) => {
     const d = new Date(`${row.date}T00:00:00`);
     const ratio = row.plannedMin > 0 ? Math.min(1, row.doneMin / row.plannedMin) : 0;
     const isToday = row.date === ctx.state.date;
@@ -58,7 +64,12 @@ export function renderWeek(root: HTMLElement, ctx: AppCtx): void {
     const fill = el('div', { class: 'bar-fill', style: `width:${(ratio * 100).toFixed(1)}%` });
     bar.append(fill);
     card.append(bar);
-    card.append(el('p', { class: 'wcard-num mono', text: `${row.doneMin}/${row.plannedMin} min` }));
+    card.append(
+      el('p', {
+        class: 'wcard-num mono',
+        text: `${Math.round(row.doneMin)}/${Math.round(row.plannedMin)} min`,
+      }),
+    );
     grid.append(card);
   });
   root.append(grid);
@@ -66,7 +77,7 @@ export function renderWeek(root: HTMLElement, ctx: AppCtx): void {
   root.append(
     el('p', {
       class: 'foot-note',
-      text: `Visit window ${fmtClock(settings.visitStart)}–${fmtClock(settings.visitEnd)}. Warning only — nothing is penalized.`,
+      text: `Loop window ${fmtClock(settings.visitStart)}–${fmtClock(settings.visitEnd)}. Warning only — nothing is penalized.`,
     }),
   );
 }

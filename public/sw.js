@@ -32,6 +32,44 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (data.type === 'notify') {
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      tag: data.tag,
+      data: data.data || {},
+      actions: data.actions || [],
+    });
+  }
+  if (data.type === 'close') {
+    self.registration.getNotifications({ tag: data.tag }).then((list) => list.forEach((n) => n.close()));
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const action = event.action || '';
+  const key = (event.notification.data && event.notification.data.key) || '';
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window' });
+      const target = windows.find((w) => 'focus' in w) || null;
+      if (action && key) {
+        if (target) {
+          target.focus();
+          target.postMessage({ type: 'verify', action, key });
+        } else {
+          await self.clients.openWindow('/?view=today');
+        }
+        return;
+      }
+      if (target) target.focus();
+      else await self.clients.openWindow('/?view=today');
+    })(),
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;

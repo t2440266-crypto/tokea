@@ -210,6 +210,7 @@ describe('weekStats', () => {
             kind: b.kind,
             outcome: 'done' as const,
             plannedStart: b.start,
+            cycleIndex: 1,
           })),
       };
     });
