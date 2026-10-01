@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Today driver screen: current block with live countdown ring, next block strip, horizontal day timeline, and progress through the plan, readable from arm's length on a shared table.
 - Automatic day plans for the five configured visit days: pinned lunch and recap anchors, per day caps on smoke and parallel downtime, and an unscheduled list when blocks do not fit, never dropped silently.
 - Started block state survives a page reload, clears only on Done or Skip, and is ignored for any other date (see spec 0001).

@@ -1,12 +1,5 @@
 export type BlockKind =
-  | 'pushups'
-  | 'smoke'
-  | 'discussion'
-  | 'stories'
-  | 'dumbbell'
-  | 'lunch'
-  | 'parallel'
-  | 'recap';
+  'pushups' | 'smoke' | 'discussion' | 'stories' | 'dumbbell' | 'lunch' | 'parallel' | 'recap';
 
 export interface Block {
   id: string;
@@ -249,7 +242,9 @@ export function weekStats(
     return {
       date: d.date,
       plannedMin: d.plan.blocks.reduce((sum, b) => sum + b.duration, 0),
-      doneMin: d.plan.blocks.filter((b) => doneIds.has(b.id)).reduce((sum, b) => sum + b.duration, 0),
+      doneMin: d.plan.blocks
+        .filter((b) => doneIds.has(b.id))
+        .reduce((sum, b) => sum + b.duration, 0),
       exercise: kinds.has('pushups') || kinds.has('dumbbell'),
       discussion: kinds.has('discussion'),
       lunch: kinds.has('lunch'),

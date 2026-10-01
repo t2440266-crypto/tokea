@@ -35,9 +35,9 @@ function abandonGesture(): void {
       suppressClick = false;
     }, 350);
   }
-  gesture.onMove && window.removeEventListener('pointermove', gesture.onMove);
-  gesture.onUp && window.removeEventListener('pointerup', gesture.onUp);
-  gesture.onCancel && window.removeEventListener('pointercancel', gesture.onCancel);
+  if (gesture.onMove) window.removeEventListener('pointermove', gesture.onMove);
+  if (gesture.onUp) window.removeEventListener('pointerup', gesture.onUp);
+  if (gesture.onCancel) window.removeEventListener('pointercancel', gesture.onCancel);
   gesture.list.classList.remove('lifting');
   gesture.row.classList.remove('lifted');
   gesture = null;
@@ -47,9 +47,9 @@ function cleanupGesture(write: boolean, ctx: AppCtx): void {
   if (!gesture) return;
   const g = gesture;
   window.clearTimeout(g.timer);
-  g.onMove && window.removeEventListener('pointermove', g.onMove);
-  g.onUp && window.removeEventListener('pointerup', g.onUp);
-  g.onCancel && window.removeEventListener('pointercancel', g.onCancel);
+  if (g.onMove) window.removeEventListener('pointermove', g.onMove);
+  if (g.onUp) window.removeEventListener('pointerup', g.onUp);
+  if (g.onCancel) window.removeEventListener('pointercancel', g.onCancel);
   try {
     g.row.releasePointerCapture(g.pointerId);
   } catch {
@@ -159,7 +159,10 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
   const dayName = DAYS[new Date(`${ctx.state.date}T00:00:00`).getDay()];
 
   root.append(
-    el('p', { class: 'dayline', text: visit ? `visit day · ${dayName}` : `not a visit day · ${dayName}` }),
+    el('p', {
+      class: 'dayline',
+      text: visit ? `visit day · ${dayName}` : `not a visit day · ${dayName}`,
+    }),
   );
 
   const hero = el('div', { class: 'hero' });
@@ -168,7 +171,11 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
       el('p', { class: 'hero-title', text: 'No visit today.' }),
       el('p', { class: 'hero-sub', text: 'The plan runs on visit days only.' }),
     );
-    const open = el('button', { class: 'btn btn-primary btn-wide', type: 'button', text: 'Open topics' });
+    const open = el('button', {
+      class: 'btn btn-primary btn-wide',
+      type: 'button',
+      text: 'Open topics',
+    });
     open.addEventListener('click', () => ctx.setView('topics'));
     hero.append(open);
     root.append(hero);
@@ -199,7 +206,11 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
 
     const actions = el('div', { class: 'actions' });
     if (!started) {
-      const start = el('button', { class: 'btn btn-primary btn-wide', type: 'button', text: 'Start' });
+      const start = el('button', {
+        class: 'btn btn-primary btn-wide',
+        type: 'button',
+        text: 'Start',
+      });
       start.addEventListener('click', () => ctx.startBlock(current.id));
       actions.append(start);
     } else {
@@ -221,9 +232,17 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
     hero.append(actions);
 
     if (skipPromptFor) {
-      const input = el('input', { class: 'input', type: 'text', placeholder: 'Note (optional)' }) as HTMLInputElement;
+      const input = el('input', {
+        class: 'input',
+        type: 'text',
+        placeholder: 'Note (optional)',
+      }) as HTMLInputElement;
       const save = el('button', { class: 'btn btn-small', type: 'button', text: 'Save' });
-      const dismiss = el('button', { class: 'btn btn-small btn-ghost', type: 'button', text: 'Dismiss' });
+      const dismiss = el('button', {
+        class: 'btn btn-small btn-ghost',
+        type: 'button',
+        text: 'Dismiss',
+      });
       const target = skipPromptFor;
       save.addEventListener('click', () => {
         ctx.setLogNote(target, input.value.trim());
@@ -250,7 +269,11 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
   } else {
     hero.append(el('p', { class: 'hero-title', text: 'Plan finished for today.' }));
     hero.append(el('p', { class: 'hero-sub', text: 'Everything scheduled has run its clock.' }));
-    const recap = el('button', { class: 'btn btn-primary btn-wide', type: 'button', text: 'Open recap' });
+    const recap = el('button', {
+      class: 'btn btn-primary btn-wide',
+      type: 'button',
+      text: 'Open recap',
+    });
     recap.addEventListener('click', () => ctx.setView('recap'));
     hero.append(recap);
   }
@@ -279,7 +302,11 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
 
   const timeline = el('div', { class: 'timeline' });
   for (const block of plan.blocks) {
-    const state = done.has(block.id) ? 'done' : current && current.id === block.id ? 'now' : 'future';
+    const state = done.has(block.id)
+      ? 'done'
+      : current && current.id === block.id
+        ? 'now'
+        : 'future';
     const seg = el(
       'div',
       { class: `seg seg-${state}`, style: `flex-grow:${block.duration};` },
@@ -292,7 +319,9 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
   root.append(timeline);
 
   const resolved = plan.blocks.filter((b) => done.has(b.id)).length;
-  root.append(el('p', { class: 'progress mono', text: `plan · ${resolved} of ${plan.blocks.length} blocks` }));
+  root.append(
+    el('p', { class: 'progress mono', text: `plan · ${resolved} of ${plan.blocks.length} blocks` }),
+  );
 
   const list = el('div', { class: 'planlist' });
   for (const block of plan.blocks) {
@@ -379,7 +408,11 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
   }
 
   if (ctx.isDirty()) {
-    const regen = el('button', { class: 'btn btn-ghost btn-wide regen', type: 'button', text: 'Regenerate plan' });
+    const regen = el('button', {
+      class: 'btn btn-ghost btn-wide regen',
+      type: 'button',
+      text: 'Regenerate plan',
+    });
     regen.addEventListener('click', () => {
       if (window.confirm('Regenerate plan? Manual edits for today are removed.')) ctx.regenDay();
     });

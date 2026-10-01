@@ -17,10 +17,14 @@ const SHOTS = [
 
 const profile = await mkdtemp(join(tmpdir(), 'visitday-shot-'));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const preview = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', '4173', '--strictPort'], {
-  cwd: process.cwd(),
-  stdio: 'ignore',
-});
+const preview = spawn(
+  process.execPath,
+  ['node_modules/vite/bin/vite.js', 'preview', '--port', '4173', '--strictPort'],
+  {
+    cwd: process.cwd(),
+    stdio: 'ignore',
+  },
+);
 async function waitForPreview() {
   for (let i = 0; i < 40; i++) {
     try {
@@ -91,7 +95,9 @@ try {
   await waitForChrome();
   for (const shot of SHOTS) {
     const target = await (
-      await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(shot.url)}`, { method: 'PUT' })
+      await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(shot.url)}`, {
+        method: 'PUT',
+      })
     ).json();
     const ws = new WebSocket(target.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => {
@@ -128,15 +134,28 @@ try {
         returnByValue: true,
       });
       const { x, y } = JSON.parse(box.result.value);
-      await rpc(ws, 'Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
-      await rpc(ws, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
+      await rpc(ws, 'Input.dispatchMouseEvent', {
+        type: 'mousePressed',
+        x,
+        y,
+        button: 'left',
+        clickCount: 1,
+      });
+      await rpc(ws, 'Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        x,
+        y,
+        button: 'left',
+        clickCount: 1,
+      });
     }
 
     if (shot.name === 'today') {
       await tap('.actions .btn');
       await sleep(300);
       const afterStart = await rpc(ws, 'Runtime.evaluate', {
-        expression: "[...document.querySelectorAll('.actions .btn')].map((b) => b.textContent).join(',')",
+        expression:
+          "[...document.querySelectorAll('.actions .btn')].map((b) => b.textContent).join(',')",
         returnByValue: true,
       });
       console.log('today actions after Start —', afterStart.result.value);
@@ -145,7 +164,8 @@ try {
       await tap('.set-dot');
       await sleep(700);
       const restProbe = await rpc(ws, 'Runtime.evaluate', {
-        expression: "document.querySelector('.rest.on') ? document.querySelector('[data-rest]')?.textContent : 'NO_REST'",
+        expression:
+          "document.querySelector('.rest.on') ? document.querySelector('[data-rest]')?.textContent : 'NO_REST'",
         returnByValue: true,
       });
       console.log('rest timer after set tap —', restProbe.result.value);
@@ -158,9 +178,12 @@ try {
   preview.kill();
   await sleep(500);
   const offTarget = await (
-    await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(`${BASE}/?view=today&now=09:42`)}`, {
-      method: 'PUT',
-    })
+    await fetch(
+      `http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(`${BASE}/?view=today&now=09:42`)}`,
+      {
+        method: 'PUT',
+      },
+    )
   ).json();
   const offWs = new WebSocket(offTarget.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {

@@ -30,7 +30,13 @@ describe('loadState', () => {
     const state = defaultPersisted();
     state.settings.visitEnd = 22 * 60;
     state.settings.durations.smoke = 15;
-    state.logs.push({ date: '2026-09-30', blockId: 'pushups', kind: 'pushups', plannedStart: 540, outcome: 'done' });
+    state.logs.push({
+      date: '2026-09-30',
+      blockId: 'pushups',
+      kind: 'pushups',
+      plannedStart: 540,
+      outcome: 'done',
+    });
     state.topics.custom.push({
       id: 'c-1',
       title: 'Custom topic',

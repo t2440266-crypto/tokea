@@ -102,7 +102,10 @@ describe('hydrate on createApp', () => {
 
 describe('applyOrder [spec 0002]', () => {
   function reversedEffective(app: ReturnType<typeof createApp>): string[] {
-    return [...app.plan().blocks].sort((a, b) => a.start - b.start).map((b) => b.id).reverse();
+    return [...app.plan().blocks]
+      .sort((a, b) => a.start - b.start)
+      .map((b) => b.id)
+      .reverse();
   }
 
   test('writes full id sequence, clears legacy starts, marks dirty [covers AC-3]', () => {

@@ -338,7 +338,7 @@ export const SEED_TOPICS_B: Topic[] = [
     prompts: [
       'At what income does more money stop adding joy — for you?',
       'What did money buy you that actually lasted?',
-      "What broke in your life when money was tight?",
+      'What broke in your life when money was tight?',
     ],
     closer: 'What would money not fix about your current days?',
   },

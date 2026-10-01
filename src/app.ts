@@ -1,9 +1,4 @@
-import {
-  applyEdits,
-  defaultSettings,
-  generatePlan,
-  isVisitDay,
-} from './schedule';
+import { applyEdits, defaultSettings, generatePlan, isVisitDay } from './schedule';
 import type { LogEntry, Plan, Settings } from './schedule';
 import { loadState, saveState, defaultPersisted } from './store';
 import type { Persisted, StorageLike } from './store';
@@ -61,7 +56,9 @@ export interface AppCtx {
   topicDiscuss(id: string): void;
   upsertTopic(topic: Topic): void;
   deleteTopic(id: string): void;
-  updateSettings(patch: Partial<Omit<Settings, 'durations'>> & { durations?: Partial<Settings['durations']> }): void;
+  updateSettings(
+    patch: Partial<Omit<Settings, 'durations'>> & { durations?: Partial<Settings['durations']> },
+  ): void;
   updateRoutine(routine: Persisted['routine']): void;
   exportData(): void;
   resetData(): void;
@@ -145,7 +142,9 @@ export function createApp(rootStorage: StorageLike): AppCtx {
   function ensureDailyDraw(): void {
     if (!isVisitDay(persisted.settings, state.date)) return;
     const todayDraws = persisted.topicHistory.filter((h) => h.date === state.date);
-    const deepDraw = [...todayDraws].reverse().find((h) => topicById(h.topicId)?.category !== 'Stories');
+    const deepDraw = [...todayDraws]
+      .reverse()
+      .find((h) => topicById(h.topicId)?.category !== 'Stories');
     if (deepDraw) {
       state.activeTopicId = deepDraw.topicId;
       return;
@@ -168,8 +167,16 @@ export function createApp(rootStorage: StorageLike): AppCtx {
   function logOutcome(blockId: string, outcome: 'done' | 'skipped', note?: string): void {
     const block = plan().blocks.find((b) => b.id === blockId);
     if (!block) return;
-    persisted.logs = persisted.logs.filter((l) => !(l.date === state.date && l.blockId === blockId));
-    const entry: LogEntry = { date: state.date, blockId, kind: block.kind, plannedStart: block.start, outcome };
+    persisted.logs = persisted.logs.filter(
+      (l) => !(l.date === state.date && l.blockId === blockId),
+    );
+    const entry: LogEntry = {
+      date: state.date,
+      blockId,
+      kind: block.kind,
+      plannedStart: block.start,
+      outcome,
+    };
     if (note) entry.note = note;
     persisted.logs.push(entry);
     const day = ensureDay();
@@ -328,7 +335,9 @@ export function createApp(rootStorage: StorageLike): AppCtx {
     },
     resetData() {
       const fresh = defaultPersisted();
-      Object.keys(persisted).forEach((k) => delete (persisted as unknown as Record<string, unknown>)[k]);
+      Object.keys(persisted).forEach(
+        (k) => delete (persisted as unknown as Record<string, unknown>)[k],
+      );
       Object.assign(persisted, fresh);
       state.started = {};
       state.activeTopicId = null;

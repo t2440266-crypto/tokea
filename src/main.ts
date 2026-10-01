@@ -93,7 +93,10 @@ window.setInterval(() => {
     return;
   }
   const clock = header.querySelector<HTMLElement>('[data-clock]')!;
-  clock.textContent = nowOverride !== null ? `${String(Math.floor(nowOverride / 60)).padStart(2, '0')}:${String(nowOverride % 60).padStart(2, '0')}:00` : fmtHMS();
+  clock.textContent =
+    nowOverride !== null
+      ? `${String(Math.floor(nowOverride / 60)).padStart(2, '0')}:${String(nowOverride % 60).padStart(2, '0')}:00`
+      : fmtHMS();
   if (ctx.state.view === 'today') tickToday(ctx);
 }, 1000);
 

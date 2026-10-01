@@ -42,7 +42,11 @@ export function daysBetween(from: string, to: string): number {
   return toDays(to) - toDays(from);
 }
 
-export function appendHistory(history: HistoryEntry[], topicId: string, date: string): HistoryEntry[] {
+export function appendHistory(
+  history: HistoryEntry[],
+  topicId: string,
+  date: string,
+): HistoryEntry[] {
   const last = history[history.length - 1];
   if (last && last.topicId === topicId && last.date === date) return history;
   return [...history, { topicId, date }];

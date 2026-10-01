@@ -10,21 +10,33 @@ export function renderRecap(root: HTMLElement, ctx: AppCtx): void {
   const settings = ctx.state.persisted.settings;
   const edits = ctx.state.persisted.template.days[date]?.edits;
   const basePlan = generatePlan(settings, date);
-  const plan: Plan = edits && Object.keys(edits).length > 0 ? applyEdits(basePlan, edits) : basePlan;
+  const plan: Plan =
+    edits && Object.keys(edits).length > 0 ? applyEdits(basePlan, edits) : basePlan;
   const logs = ctx.state.persisted.logs.filter((l) => l.date === date);
 
   const doneIds = new Set(logs.filter((l) => l.outcome === 'done').map((l) => l.blockId));
   const skippedIds = new Set(logs.filter((l) => l.outcome === 'skipped').map((l) => l.blockId));
   const plannedMin = plan.blocks.reduce((sum, b) => sum + b.duration, 0);
-  const completedMin = plan.blocks.filter((b) => doneIds.has(b.id)).reduce((sum, b) => sum + b.duration, 0);
+  const completedMin = plan.blocks
+    .filter((b) => doneIds.has(b.id))
+    .reduce((sum, b) => sum + b.duration, 0);
   const pct = plannedMin > 0 ? Math.round((completedMin / plannedMin) * 100) : 0;
 
   const d = new Date(`${date}T00:00:00`);
   const head = el('div', { class: 'recap-head' });
   head.append(el('p', { class: 'eyebrow', text: date === ctx.state.date ? 'today' : 'day recap' }));
-  head.append(el('p', { class: 'hero-title', text: `${DAY_SHORT[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}` }));
+  head.append(
+    el('p', {
+      class: 'hero-title',
+      text: `${DAY_SHORT[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}`,
+    }),
+  );
   if (ctx.state.recapDate) {
-    const back = el('button', { class: 'btn btn-small btn-ghost', type: 'button', text: 'Show today' });
+    const back = el('button', {
+      class: 'btn btn-small btn-ghost',
+      type: 'button',
+      text: 'Show today',
+    });
     back.addEventListener('click', () => {
       ctx.state.recapDate = null;
       ctx.emit();
@@ -42,10 +54,16 @@ export function renderRecap(root: HTMLElement, ctx: AppCtx): void {
   root.append(el('p', { class: 'section-label', text: 'blocks' }));
   const list = el('div', { class: 'list' });
   for (const block of plan.blocks) {
-    const status = doneIds.has(block.id) ? 'done' : skippedIds.has(block.id) ? 'skipped' : 'planned';
+    const status = doneIds.has(block.id)
+      ? 'done'
+      : skippedIds.has(block.id)
+        ? 'skipped'
+        : 'planned';
     const row = el('div', { class: 'lrow static' });
     row.append(el('span', { class: 'lrow-title', text: block.title }));
-    row.append(el('span', { class: `lrow-meta ${status === 'done' ? 'is-done' : ''}`, text: status }));
+    row.append(
+      el('span', { class: `lrow-meta ${status === 'done' ? 'is-done' : ''}`, text: status }),
+    );
     list.append(row);
   }
   root.append(list);
@@ -72,13 +90,20 @@ export function renderRecap(root: HTMLElement, ctx: AppCtx): void {
     const topic = ctx.topicById(last.topicId);
     if (topic) {
       root.append(el('p', { class: 'section-label', text: 'topic drawn' }));
-      root.append(el('div', { class: 'lrow static' }, el('span', { class: 'lrow-title', text: topic.title })));
+      root.append(
+        el('div', { class: 'lrow static' }, el('span', { class: 'lrow-title', text: topic.title })),
+      );
     }
   }
 
   root.append(el('p', { class: 'section-label', text: 'day note' }));
-  const note = el('textarea', { class: 'input', rows: '3', placeholder: 'Anything worth remembering from this day' }) as HTMLTextAreaElement;
-  note.value = date === ctx.state.date ? ctx.dayNote() : (ctx.state.persisted.template.days[date]?.note ?? '');
+  const note = el('textarea', {
+    class: 'input',
+    rows: '3',
+    placeholder: 'Anything worth remembering from this day',
+  }) as HTMLTextAreaElement;
+  note.value =
+    date === ctx.state.date ? ctx.dayNote() : (ctx.state.persisted.template.days[date]?.note ?? '');
   note.addEventListener('change', () => {
     if (date === ctx.state.date) ctx.setDayNote(note.value);
     else {
@@ -100,7 +125,12 @@ export function renderRecap(root: HTMLElement, ctx: AppCtx): void {
   );
   root.append(score);
 
-  const dates = [...new Set([...ctx.state.persisted.logs.map((l) => l.date), ...Object.keys(ctx.state.persisted.template.days)])]
+  const dates = [
+    ...new Set([
+      ...ctx.state.persisted.logs.map((l) => l.date),
+      ...Object.keys(ctx.state.persisted.template.days),
+    ]),
+  ]
     .filter((ds) => ds <= ctx.state.date)
     .sort()
     .reverse()

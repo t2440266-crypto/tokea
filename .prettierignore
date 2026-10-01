@@ -1,0 +1,9 @@
+dist/
+node_modules/
+package-lock.json
+evidence/
+public/fonts/
+.agents/
+.claude/
+skills-lock.json
+docs/

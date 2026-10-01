@@ -25,7 +25,8 @@ export function renderWeek(root: HTMLElement, ctx: AppCtx): void {
     .map((ds) => {
       const edits = ctx.state.persisted.template.days[ds]?.edits;
       const basePlan = generatePlan(settings, ds);
-      const plan: Plan = edits && Object.keys(edits).length > 0 ? applyEdits(basePlan, edits) : basePlan;
+      const plan: Plan =
+        edits && Object.keys(edits).length > 0 ? applyEdits(basePlan, edits) : basePlan;
       const logs = ctx.state.persisted.logs.filter((l) => l.date === ds);
       return { date: ds, plan, logs };
     });
@@ -48,7 +49,10 @@ export function renderWeek(root: HTMLElement, ctx: AppCtx): void {
     const isToday = row.date === ctx.state.date;
     const card = el('div', { class: `wcard${isToday ? ' today' : ''}` });
     card.append(
-      el('p', { class: 'wcard-day', text: `${DAY_SHORT[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}` }),
+      el('p', {
+        class: 'wcard-day',
+        text: `${DAY_SHORT[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}`,
+      }),
     );
     const bar = el('div', { class: 'bar' });
     const fill = el('div', { class: 'bar-fill', style: `width:${(ratio * 100).toFixed(1)}%` });
@@ -59,5 +63,10 @@ export function renderWeek(root: HTMLElement, ctx: AppCtx): void {
   });
   root.append(grid);
 
-  root.append(el('p', { class: 'foot-note', text: `Visit window ${fmtClock(settings.visitStart)}–${fmtClock(settings.visitEnd)}. Warning only — nothing is penalized.` }));
+  root.append(
+    el('p', {
+      class: 'foot-note',
+      text: `Visit window ${fmtClock(settings.visitStart)}–${fmtClock(settings.visitEnd)}. Warning only — nothing is penalized.`,
+    }),
+  );
 }

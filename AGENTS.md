@@ -47,11 +47,11 @@ Stored in `docs/specs/`. Format: `docs/specs/NNNN-title.md` (directory shape: `N
 - Zero runtime dependencies; adding any dependency needs explicit engineer approval (MASTERPROMPT lock).
 - UI copy: sentence case, plain verbs, no shaming words (no failed/wasted/ashamed).
 
-## Tooling (chosen, pending a `/develop tooling` task)
+## Tooling (installed)
 
-- Lint + format: ESLint + Prettier (dev deps, not yet installed).
-- Pre-commit: lint + format + typecheck via husky + lint-staged (not yet installed).
-- CI: basic check on push — lint, typecheck, test (no workflow file yet).
+- Lint + format: ESLint (flat config, `typescript-eslint` recommended) + Prettier (`singleQuote`, `printWidth: 100`). `npm run lint`, `npm run format`, `npm run format:check`.
+- Pre-commit: husky + lint-staged (eslint --fix + prettier on staged `.ts`, prettier on the rest) then `tsc --noEmit`, via `.husky/pre-commit`.
+- CI: `.github/workflows/ci.yml` — lint, format check, and `npm run verify` on push and pull request.
 - Test runner: vitest, tied to `npm run verify`.
 
 ## Git

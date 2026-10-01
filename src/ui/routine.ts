@@ -15,7 +15,9 @@ export function renderRoutine(root: HTMLElement, ctx: AppCtx): (() => void) | vo
   root.append(el('p', { class: 'section-label', text: 'dumbbell day' }));
   if (routine.exercises.length === 0) {
     root.append(
-      el('div', { class: 'empty' },
+      el(
+        'div',
+        { class: 'empty' },
         el('p', { class: 'hero-title', text: 'No exercises yet.' }),
         el('p', { class: 'hero-sub', text: 'Add the routine in settings.' }),
       ),
@@ -28,7 +30,9 @@ export function renderRoutine(root: HTMLElement, ctx: AppCtx): (() => void) | vo
     }
     const card = el('div', { class: 'ex-card' });
     card.append(el('p', { class: 'ex-name', text: ex.name }));
-    card.append(el('p', { class: 'ex-meta mono', text: `${ex.sets} × ${ex.reps} · rest ${ex.restSec}s` }));
+    card.append(
+      el('p', { class: 'ex-meta mono', text: `${ex.sets} × ${ex.reps} · rest ${ex.restSec}s` }),
+    );
     const sets = el('div', { class: 'set-row' });
     checks[ex.id].forEach((done, i) => {
       const dot = el('button', {
@@ -59,7 +63,9 @@ export function renderRoutine(root: HTMLElement, ctx: AppCtx): (() => void) | vo
   if (restUntil > Date.now()) {
     const remain = (restUntil - Date.now()) / 1000;
     restBox.append(el('p', { class: 'eyebrow', text: 'rest' }));
-    restBox.append(el('p', { class: 'rest-num mono', 'data-rest': '', text: fmtRemaining(remain / 60) }));
+    restBox.append(
+      el('p', { class: 'rest-num mono', 'data-rest': '', text: fmtRemaining(remain / 60) }),
+    );
     const skip = el('button', { class: 'btn btn-small', type: 'button', text: 'Skip rest' });
     skip.addEventListener('click', () => {
       restUntil = 0;
@@ -76,7 +82,12 @@ export function renderRoutine(root: HTMLElement, ctx: AppCtx): (() => void) | vo
   const push = ctx.state.persisted.settings.pushups;
   const pushCard = el('div', { class: 'ex-card' });
   pushCard.append(el('p', { class: 'ex-name', text: 'Pushups' }));
-  pushCard.append(el('p', { class: 'ex-meta mono', text: `set ${Math.min(pushIndex + 1, push.sets)} of ${push.sets} · ${push.reps} reps` }));
+  pushCard.append(
+    el('p', {
+      class: 'ex-meta mono',
+      text: `set ${Math.min(pushIndex + 1, push.sets)} of ${push.sets} · ${push.reps} reps`,
+    }),
+  );
   const complete = el('button', {
     class: 'btn btn-primary',
     type: 'button',
@@ -101,7 +112,11 @@ export function renderRoutine(root: HTMLElement, ctx: AppCtx): (() => void) | vo
   pushCard.append(complete);
   root.append(pushCard);
 
-  const reset = el('button', { class: 'btn btn-ghost btn-wide', type: 'button', text: 'Reset checks' });
+  const reset = el('button', {
+    class: 'btn btn-ghost btn-wide',
+    type: 'button',
+    text: 'Reset checks',
+  });
   reset.addEventListener('click', () => {
     checks = {};
     pushIndex = 0;

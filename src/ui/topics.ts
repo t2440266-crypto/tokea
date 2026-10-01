@@ -37,7 +37,11 @@ export function renderTopics(root: HTMLElement, ctx: AppCtx): void {
   root.append(chips);
 
   const controls = el('div', { class: 'draw-row' });
-  const drawBtn = el('button', { class: 'btn btn-primary btn-wide', type: 'button', text: 'Draw a topic' });
+  const drawBtn = el('button', {
+    class: 'btn btn-primary btn-wide',
+    type: 'button',
+    text: 'Draw a topic',
+  });
   drawBtn.addEventListener('click', () => {
     haptic();
     ctx.drawNow();
@@ -113,7 +117,11 @@ export function renderTopics(root: HTMLElement, ctx: AppCtx): void {
   root.append(toggle);
 
   if (showAdd) {
-    const title = el('input', { class: 'input', type: 'text', placeholder: 'Title' }) as HTMLInputElement;
+    const title = el('input', {
+      class: 'input',
+      type: 'text',
+      placeholder: 'Title',
+    }) as HTMLInputElement;
     const category = el('select', { class: 'input' }) as HTMLSelectElement;
     for (const c of CATEGORIES) {
       const opt = el('option', { value: c, text: c.toLowerCase() });
@@ -124,8 +132,16 @@ export function renderTopics(root: HTMLElement, ctx: AppCtx): void {
       rows: '4',
       placeholder: 'One prompt per line (3–5 prompts)',
     }) as HTMLTextAreaElement;
-    const closer = el('input', { class: 'input', type: 'text', placeholder: 'Closer question' }) as HTMLInputElement;
-    const save = el('button', { class: 'btn btn-primary btn-wide', type: 'button', text: 'Save topic' });
+    const closer = el('input', {
+      class: 'input',
+      type: 'text',
+      placeholder: 'Closer question',
+    }) as HTMLInputElement;
+    const save = el('button', {
+      class: 'btn btn-primary btn-wide',
+      type: 'button',
+      text: 'Save topic',
+    });
     save.addEventListener('click', () => {
       const lines = prompts.value
         .split('\n')
@@ -175,7 +191,11 @@ function topicCard(topic: Topic, ctx: AppCtx): HTMLElement {
     ctx.topicDone(topic.id);
   });
   const saved = ctx.state.persisted.savedTopicIds.includes(topic.id);
-  const save = el('button', { class: 'btn', type: 'button', text: saved ? 'Saved' : 'Save for later' });
+  const save = el('button', {
+    class: 'btn',
+    type: 'button',
+    text: saved ? 'Saved' : 'Save for later',
+  });
   save.addEventListener('click', () => ctx.topicSave(topic.id));
   row.append(discuss, done, save);
   card.append(row);

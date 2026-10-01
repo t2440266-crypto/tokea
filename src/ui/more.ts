@@ -13,5 +13,7 @@ export function renderMore(root: HTMLElement, ctx: AppCtx): void {
   settings.addEventListener('click', () => ctx.setView('settings'));
   menu.append(recap, settings);
   root.append(menu);
-  root.append(el('p', { class: 'foot-note', text: 'Visit Day Driver · everything stays on this device' }));
+  root.append(
+    el('p', { class: 'foot-note', text: 'Visit Day Driver · everything stays on this device' }),
+  );
 }

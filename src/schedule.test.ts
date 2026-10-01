@@ -11,7 +11,10 @@ import type { Plan, Settings } from './schedule';
 
 const s = (): Settings => defaultSettings();
 
-function overlaps(a: { start: number; duration: number }, b: { start: number; duration: number }): boolean {
+function overlaps(
+  a: { start: number; duration: number },
+  b: { start: number; duration: number },
+): boolean {
   return a.start < b.start + b.duration && b.start < a.start + a.duration;
 }
 
@@ -86,7 +89,9 @@ describe('generatePlan', () => {
     expect(plan.unscheduled.length).toBeGreaterThan(0);
     const scheduled = plan.blocks.filter((b) => !b.anchored).length;
     const flexible = settings.template.length;
-    expect(scheduled + plan.unscheduled.filter((u) => u.kind !== 'lunch' && u.kind !== 'recap').length).toBe(flexible);
+    expect(
+      scheduled + plan.unscheduled.filter((u) => u.kind !== 'lunch' && u.kind !== 'recap').length,
+    ).toBe(flexible);
   });
 });
 
@@ -127,9 +132,23 @@ describe('currentBlock', () => {
   const plan: Plan = {
     date: '2026-09-30',
     blocks: [
-      { id: 'a', kind: 'discussion', title: 'Discussion (deep)', start: 600, duration: 45, anchored: false },
+      {
+        id: 'a',
+        kind: 'discussion',
+        title: 'Discussion (deep)',
+        start: 600,
+        duration: 45,
+        anchored: false,
+      },
       { id: 'b', kind: 'lunch', title: 'Lunch out', start: 660, duration: 90, anchored: true },
-      { id: 'c', kind: 'parallel', title: 'Parallel vibes', start: 780, duration: 90, anchored: false },
+      {
+        id: 'c',
+        kind: 'parallel',
+        title: 'Parallel vibes',
+        start: 780,
+        duration: 90,
+        anchored: false,
+      },
     ],
     unscheduled: [],
   };
@@ -177,8 +196,21 @@ describe('weekStats', () => {
         date,
         plan,
         logs: plan.blocks
-          .filter((b) => b.kind === 'pushups' || b.kind === 'dumbbell' || b.kind === 'lunch' || b.kind === 'discussion' || b.kind === 'recap')
-          .map((b) => ({ date, blockId: b.id, kind: b.kind, outcome: 'done' as const, plannedStart: b.start })),
+          .filter(
+            (b) =>
+              b.kind === 'pushups' ||
+              b.kind === 'dumbbell' ||
+              b.kind === 'lunch' ||
+              b.kind === 'discussion' ||
+              b.kind === 'recap',
+          )
+          .map((b) => ({
+            date,
+            blockId: b.id,
+            kind: b.kind,
+            outcome: 'done' as const,
+            plannedStart: b.start,
+          })),
       };
     });
     const stats = weekStats(settings, days);

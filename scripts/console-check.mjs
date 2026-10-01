@@ -8,13 +8,24 @@ const PORT = 9336;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const profile = await mkdtemp(join(tmpdir(), 'visitday-console-'));
-const preview = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', '4173', '--strictPort'], {
-  cwd: process.cwd(),
-  stdio: 'ignore',
-});
+const preview = spawn(
+  process.execPath,
+  ['node_modules/vite/bin/vite.js', 'preview', '--port', '4173', '--strictPort'],
+  {
+    cwd: process.cwd(),
+    stdio: 'ignore',
+  },
+);
 const chrome = spawn(
   CHROME,
-  ['--headless=new', '--disable-gpu', '--hide-scrollbars', `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`, 'about:blank'],
+  [
+    '--headless=new',
+    '--disable-gpu',
+    '--hide-scrollbars',
+    `--remote-debugging-port=${PORT}`,
+    `--user-data-dir=${profile}`,
+    'about:blank',
+  ],
   { stdio: 'ignore' },
 );
 
@@ -47,9 +58,12 @@ try {
   await waitUrl(`http://127.0.0.1:${PORT}/json/version`);
   await waitUrl('http://localhost:4173/');
   const target = await (
-    await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent('http://localhost:4173/?now=09:42')}`, {
-      method: 'PUT',
-    })
+    await fetch(
+      `http://127.0.0.1:${PORT}/json/new?${encodeURIComponent('http://localhost:4173/?now=09:42')}`,
+      {
+        method: 'PUT',
+      },
+    )
   ).json();
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {

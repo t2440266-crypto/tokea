@@ -14,7 +14,9 @@ export interface StorageLike {
 export interface Persisted {
   v: 1;
   settings: Settings;
-  template: { days: Record<string, { edits: DayEdits; dirty: boolean; note?: string; startedId?: string }> };
+  template: {
+    days: Record<string, { edits: DayEdits; dirty: boolean; note?: string; startedId?: string }>;
+  };
   routine: Routine;
   topics: { seedMeta: { version: number }; custom: Topic[] };
   topicHistory: HistoryEntry[];
@@ -62,14 +64,17 @@ export function migrate(raw: unknown): Persisted {
       ...settingsIn,
       durations: {
         ...defaults.settings.durations,
-        ...(isRecord(settingsIn.durations) ? (settingsIn.durations as Partial<Record<BlockKind, number>>) : {}),
+        ...(isRecord(settingsIn.durations)
+          ? (settingsIn.durations as Partial<Record<BlockKind, number>>)
+          : {}),
       },
       pushups: isRecord(settingsIn.pushups)
         ? { ...defaults.settings.pushups, ...settingsIn.pushups }
         : defaults.settings.pushups,
-      lunchWindow: Array.isArray(settingsIn.lunchWindow) && settingsIn.lunchWindow.length === 2
-        ? [Number(settingsIn.lunchWindow[0]), Number(settingsIn.lunchWindow[1])]
-        : defaults.settings.lunchWindow,
+      lunchWindow:
+        Array.isArray(settingsIn.lunchWindow) && settingsIn.lunchWindow.length === 2
+          ? [Number(settingsIn.lunchWindow[0]), Number(settingsIn.lunchWindow[1])]
+          : defaults.settings.lunchWindow,
       template: Array.isArray(settingsIn.template)
         ? (settingsIn.template as BlockKind[])
         : defaults.settings.template,
@@ -77,8 +82,12 @@ export function migrate(raw: unknown): Persisted {
         ? (settingsIn.visitDays as number[])
         : defaults.settings.visitDays,
     },
-    template: { days: isRecord(raw.template.days) ? (raw.template.days as Persisted['template']['days']) : {} },
-    routine: Array.isArray(raw.routine.exercises) ? (raw.routine as unknown as Routine) : defaults.routine,
+    template: {
+      days: isRecord(raw.template.days) ? (raw.template.days as Persisted['template']['days']) : {},
+    },
+    routine: Array.isArray(raw.routine.exercises)
+      ? (raw.routine as unknown as Routine)
+      : defaults.routine,
     topics: {
       seedMeta: isRecord(topicsIn.seedMeta)
         ? { version: Number(topicsIn.seedMeta.version) || 1 }
