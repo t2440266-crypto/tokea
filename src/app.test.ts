@@ -289,6 +289,18 @@ describe('markVerified [spec 0003]', () => {
     expect(row?.corrected).toBe(true);
     expect(loadState(storage).fines.pushups ?? 0).toBe(0);
   });
+
+  test('fines never go negative and a second correction is a no-op [covers AC-6]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    app.markVerified({ kind: 'smoke', cycleIndex: 97 }, 'tick');
+    expect(loadState(storage).fines.smoke ?? 0).toBe(0);
+    app.markVerified({ kind: 'stories', cycleIndex: 96 }, 'x');
+    app.markVerified({ kind: 'stories', cycleIndex: 96 }, 'tick', { correction: true });
+    app.markVerified({ kind: 'stories', cycleIndex: 96 }, 'tick', { correction: true });
+    expect(loadState(storage).fines.stories ?? 0).toBe(0);
+    expect(loadState(storage).logs.filter((l) => l.cycleIndex === 96)).toHaveLength(1);
+  });
 });
 
 describe('reconcile [spec 0003]', () => {
@@ -313,7 +325,10 @@ describe('reconcile [spec 0003]', () => {
   test('does nothing on a non visit day [covers AC-10]', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-04T12:00:00'));
+    const state = defaultPersisted();
+    state.settings.visitDays = [2, 3, 4, 5, 6];
     const storage = memStorage();
+    saveState(storage, state);
     createApp(storage);
     expect(loadState(storage).logs.filter((l) => l.auto === true)).toHaveLength(0);
   });

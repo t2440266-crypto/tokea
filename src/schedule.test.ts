@@ -8,6 +8,20 @@ import {
   weekStats,
 } from './schedule';
 import type { Plan, Settings } from './schedule';
+import { TITLES } from './schedule';
+
+describe('visit day defaults', () => {
+  test('every day of the week is a visit day by default', () => {
+    expect(defaultSettings().visitDays).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+});
+
+describe('display titles [spec 0003]', () => {
+  test('lunch reads Food time everywhere it is shown [covers AC-8]', () => {
+    expect(TITLES.lunch).toBe('Food time');
+    expect(TITLES.pushups).toBe('Pushups');
+  });
+});
 
 const s = (): Settings => defaultSettings();
 
@@ -181,9 +195,14 @@ describe('currentBlock', () => {
 });
 
 describe('isVisitDay', () => {
-  test('Wednesday is a default visit day, Saturday is not', () => {
+  test('every day is a visit day by default; a custom set is honored', () => {
     expect(isVisitDay(s(), '2026-09-30')).toBe(true);
-    expect(isVisitDay(s(), '2026-10-03')).toBe(false);
+    expect(isVisitDay(s(), '2026-10-03')).toBe(true);
+    expect(isVisitDay(s(), '2026-10-04')).toBe(true);
+    const custom = s();
+    custom.visitDays = [1];
+    expect(isVisitDay(custom, '2026-10-03')).toBe(false);
+    expect(isVisitDay(custom, '2026-09-28')).toBe(true);
   });
 });
 

@@ -61,6 +61,32 @@ describe('migrate', () => {
     expect(migrate({ v: 99, settings: {} })).toEqual(defaultPersisted());
   });
 
+  test('untouched five day default upgrades to all seven days', () => {
+    const result = migrate({
+      v: 1,
+      settings: { visitDays: [1, 2, 3, 4, 5] },
+      template: { days: {} },
+      routine: { exercises: [] },
+      topics: { seedMeta: { version: 1 }, custom: [] },
+      topicHistory: [],
+      logs: [],
+    });
+    expect(result.settings.visitDays).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  test('customized day set is never touched by the upgrade', () => {
+    const result = migrate({
+      v: 1,
+      settings: { visitDays: [1, 3] },
+      template: { days: {} },
+      routine: { exercises: [] },
+      topics: { seedMeta: { version: 1 }, custom: [] },
+      topicHistory: [],
+      logs: [],
+    });
+    expect(result.settings.visitDays).toEqual([1, 3]);
+  });
+
   test('v1 with missing additive fields fills them from defaults [covers AC-6]', () => {
     const minimal = {
       v: 1,

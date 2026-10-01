@@ -24,6 +24,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 3 | Template order editor | Slice 1 | done |
 | 4 | Lighthouse audit pass | Slice 1 | done |
 | 5 | Automatic cycling engine | Slice 2 | in-progress |
+| 6 | Every day of the week | Slice 2 | done |
 
 ## Existing
 
@@ -109,8 +110,17 @@ Endless activity loop on visit days: each activity auto-starts on its own clock 
    - [x] Notification layer: permission, start and prompt notifications, in-app banner, SW actions, timeout (AC-3, AC-4, AC-5)
    - [x] Full AC-tagged suite green (AC-4, AC-6, AC-9)
 - [ ] Verify it: /check verify automatic cycling engine
-- [ ] Test it: /test automatic cycling engine
+- [x] Test it: /test automatic cycling engine
 Spec [0003](../specs/0003-automatic-cycling-engine/index.md) · code in `src/cycle.ts`, `src/main.ts`, `src/ui/today.ts`, `src/notify.ts`, `public/sw.js`
+
+### 6. Every day of the week · done
+Run the loop on all seven days, not just five, because the app is used personally even when no friend visits. Existing saves that still hold the old five day default upgrade to seven; anything the owner customized is left alone.
+
+**Done when:** fresh installs default to visit days 0 through 6; a save carrying the untouched old default `[1,2,3,4,5]` migrates to all seven; a customized day set survives unchanged; Settings shows all seven selected by default.
+- [x] Build it: `/develop every day of the week`
+- [x] Verify it: CDP probe on Settings — 7 chips selected, `visitDays=0,1,2,3,4,5,6` (PASS); migration units cover upgrade and custom-set cases
+- [x] Test it: default + migration tests in `schedule.test.ts` and `store.test.ts`; suite 77/77
+Code in `src/schedule.ts`, `src/store.ts`
 
 ## Deferred
 Out of scope for this build pass, kept so the plan stays honest. These are MASTERPROMPT non goals.

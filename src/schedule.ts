@@ -63,7 +63,7 @@ export const TITLES: Record<BlockKind, string> = {
 
 export function defaultSettings(): Settings {
   return {
-    visitDays: [1, 2, 3, 4, 5],
+    visitDays: [0, 1, 2, 3, 4, 5, 6],
     visitStart: 9 * 60,
     visitEnd: 21 * 60,
     durations: {

@@ -24,7 +24,9 @@ describe('windowBounds', () => {
   });
 
   test('returns null on a non visit day', () => {
-    expect(windowBounds(s(), '2026-10-04')).toBeNull();
+    const custom = s();
+    custom.visitDays = [1, 2, 3, 4, 5];
+    expect(windowBounds(custom, '2026-10-04')).toBeNull();
   });
 
   test('window ending before start crosses midnight', () => {
@@ -75,7 +77,31 @@ describe('chainSchedule', () => {
   });
 
   test('empty schedule on a non visit day', () => {
-    expect(chainSchedule(s(), '2026-10-04')).toHaveLength(0);
+    const custom = s();
+    custom.visitDays = [1, 2, 3, 4, 5];
+    expect(chainSchedule(custom, '2026-10-04')).toHaveLength(0);
+  });
+
+  test('custom cycleOrder drives the chain order [covers AC-1]', () => {
+    const settings = s();
+    settings.cycleOrder = ['discussion', 'lunch', 'pushups'];
+    const occ = chainSchedule(settings, DATE);
+    expect(occ[0].kind).toBe('discussion');
+    expect(occ[1].kind).toBe('lunch');
+    expect(occ[2].kind).toBe('pushups');
+    expect(occ[3].kind).toBe('discussion');
+    expect(occ[3].cycleIndex).toBe(2);
+  });
+
+  test('cross midnight window schedules past midnight [covers AC-10]', () => {
+    const settings = s();
+    settings.visitStart = 22 * 60;
+    settings.visitEnd = 2 * 60;
+    const bounds = windowBounds(settings, DATE)!;
+    const occ = chainSchedule(settings, DATE);
+    expect(occ.length).toBeGreaterThan(0);
+    expect(occ.some((o) => o.end > bounds.end - 60 * 60000)).toBe(true);
+    expect(occ.every((o) => o.start < bounds.end)).toBe(true);
   });
 
   test('occurrence keys are unique per date, cycle, kind', () => {

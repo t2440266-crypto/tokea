@@ -80,9 +80,12 @@ export function migrate(raw: unknown): Persisted {
       template: Array.isArray(settingsIn.template)
         ? (settingsIn.template as BlockKind[])
         : defaults.settings.template,
-      visitDays: Array.isArray(settingsIn.visitDays)
-        ? (settingsIn.visitDays as number[])
-        : defaults.settings.visitDays,
+      visitDays: (() => {
+        const stored = settingsIn.visitDays;
+        if (!Array.isArray(stored)) return defaults.settings.visitDays;
+        const oldDefault = stored.length === 5 && [1, 2, 3, 4, 5].every((n, i) => stored[i] === n);
+        return oldDefault ? [0, 1, 2, 3, 4, 5, 6] : (stored as number[]);
+      })(),
     },
     template: {
       days: isRecord(raw.template.days) ? (raw.template.days as Persisted['template']['days']) : {},
