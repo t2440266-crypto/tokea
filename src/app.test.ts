@@ -303,6 +303,105 @@ describe('markVerified [spec 0003]', () => {
   });
 });
 
+describe('fine sessions [spec 0004]', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-01T07:00:00'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('start creates a running session with endsAt from the activity duration [covers AC-2]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    const session = app.startFineSession('pushups', 97);
+    expect(session).not.toBeNull();
+    expect(session!.status).toBe('running');
+    expect(session!.id.length).toBeGreaterThan(8);
+    expect(session!.endsAt - session!.startedAt).toBe(10 * 60000);
+    expect(loadState(storage).fineSessions).toHaveLength(1);
+  });
+
+  test('second start is a no-op while one is running [covers AC-7]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    app.startFineSession('pushups', 97);
+    app.startFineSession('smoke', 97);
+    expect(loadState(storage).fineSessions).toHaveLength(1);
+  });
+
+  test('paid flips the row, clears one fine, marks paid [covers AC-3]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    app.markVerified({ kind: 'pushups', cycleIndex: 97 }, 'x');
+    expect(loadState(storage).fines.pushups).toBe(1);
+    const session = app.startFineSession('pushups', 97)!;
+    app.answerSession(session.id, 'paid');
+    const row = loadState(storage).logs.find((l) => l.cycleIndex === 97);
+    expect(row?.outcome).toBe('done');
+    expect(row?.corrected).toBe(true);
+    expect(loadState(storage).fines.pushups ?? 0).toBe(0);
+    expect(loadState(storage).fineSessions[0].status).toBe('paid');
+  });
+
+  test('paid with no row still marks paid and floors the ledger [covers AC-3]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    const session = app.startFineSession('stories', 96)!;
+    app.answerSession(session.id, 'paid');
+    expect(loadState(storage).fineSessions[0].status).toBe('paid');
+    expect(loadState(storage).fines.stories ?? 0).toBe(0);
+  });
+
+  test('notdone expires the session and keeps the fine [covers AC-4]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    app.markVerified({ kind: 'smoke', cycleIndex: 95 }, 'x');
+    const session = app.startFineSession('smoke', 95)!;
+    app.answerSession(session.id, 'notdone');
+    expect(loadState(storage).fineSessions[0].status).toBe('expired');
+    expect(loadState(storage).fines.smoke).toBe(1);
+  });
+
+  test('answer at or past endsAt is rejected [covers AC-4]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    app.markVerified({ kind: 'pushups', cycleIndex: 94 }, 'x');
+    const session = app.startFineSession('pushups', 94)!;
+    vi.setSystemTime(new Date(session.endsAt + 1000));
+    app.state.nowMs = Date.now();
+    app.answerSession(session.id, 'paid');
+    expect(loadState(storage).fineSessions[0].status).toBe('running');
+    expect(loadState(storage).fines.pushups).toBe(1);
+  });
+
+  test('expireSessions expires at endsAt; reconcile does the same on boot [covers AC-4, AC-7]', () => {
+    const storage = memStorage();
+    const app = createApp(storage);
+    const session = app.startFineSession('pushups', 93)!;
+    vi.setSystemTime(new Date(session.endsAt + 1000));
+    app.state.nowMs = Date.now();
+    app.expireSessions();
+    expect(loadState(storage).fineSessions[0].status).toBe('expired');
+
+    const seeded = defaultPersisted();
+    seeded.fineSessions.push({
+      id: 'stale-1',
+      kind: 'pushups',
+      cycleIndex: 92,
+      startedAt: Date.now() - 60 * 60000,
+      endsAt: Date.now() - 30 * 60000,
+      status: 'running',
+    });
+    const storage2 = memStorage();
+    saveState(storage2, seeded);
+    createApp(storage2);
+    expect(loadState(storage2).fineSessions[0].status).toBe('expired');
+  });
+});
+
 describe('reconcile [spec 0003]', () => {
   afterEach(() => {
     vi.useRealTimers();

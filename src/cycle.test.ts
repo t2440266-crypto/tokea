@@ -126,6 +126,42 @@ describe('occurrenceAt', () => {
   });
 });
 
+describe('penalty adjusted schedule [spec 0004]', () => {
+  const session = (startedAt: number, endsAt: number) => ({ startedAt, endsAt });
+
+  test('occurrence overlapping a session gains 25 minutes and later starts shift [covers AC-5]', () => {
+    const settings = s();
+    const sessions = [session(at(9, 5), at(9, 15))];
+    const occ = chainSchedule(settings, DATE, sessions);
+    expect(occ[0].kind).toBe('pushups');
+    expect(occ[0].end - occ[0].start).toBe(35 * 60000);
+    expect(occ[0].end).toBe(at(9, 35));
+    expect(occ[1].kind).toBe('smoke');
+    expect(occ[1].start).toBe(at(9, 35));
+  });
+
+  test('two overlapping sessions stack to plus 50 [covers AC-5]', () => {
+    const settings = s();
+    const sessions = [session(at(9, 5), at(9, 15)), session(at(9, 7), at(9, 12))];
+    const occ = chainSchedule(settings, DATE, sessions);
+    expect(occ[0].end - occ[0].start).toBe(60 * 60000);
+    expect(occ[1].start).toBe(at(10));
+  });
+
+  test('session outside the window changes nothing [covers AC-5]', () => {
+    const base = chainSchedule(s(), DATE);
+    const withFar = chainSchedule(s(), DATE, [session(at(22), at(23))]);
+    expect(withFar.map((o) => o.start)).toEqual(base.map((o) => o.start));
+    expect(withFar.map((o) => o.end)).toEqual(base.map((o) => o.end));
+  });
+
+  test('no sessions keeps spec 0003 output identical', () => {
+    const base = chainSchedule(s(), DATE);
+    const none = chainSchedule(s(), DATE, []);
+    expect(none).toEqual(base);
+  });
+});
+
 describe('promptTimes', () => {
   function occWith(kind: ChainOccurrence['kind'], start: number, end: number): ChainOccurrence {
     return { kind, cycleIndex: 1, key: `k:${kind}`, start, end };

@@ -1,6 +1,6 @@
 import type { AppCtx } from '../app';
 import { todayISO } from '../app';
-import { chainSchedule } from '../cycle';
+import { chainSchedule, sessionsForDate } from '../cycle';
 import { generatePlan, isVisitDay, weekStats } from '../schedule';
 import { el, fmtClock } from './dom';
 
@@ -23,7 +23,11 @@ export function renderWeek(root: HTMLElement, ctx: AppCtx): void {
   const rows = weekDates
     .filter((ds) => isVisitDay(settings, ds))
     .map((ds) => {
-      const sched = chainSchedule(settings, ds);
+      const sched = chainSchedule(
+        settings,
+        ds,
+        sessionsForDate(ctx.state.persisted.fineSessions, ds),
+      );
       const logs = ctx.state.persisted.logs.filter((l) => l.date === ds);
       const plannedMin = sched.reduce((sum, o) => sum + (o.end - o.start) / 60000, 0);
       const doneMin = logs

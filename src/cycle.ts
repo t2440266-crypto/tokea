@@ -1,12 +1,43 @@
 import { isVisitDay } from './schedule';
 import type { BlockKind, Settings } from './schedule';
 
+export const PENALTY_MIN = 25;
+
 export interface ChainOccurrence {
   kind: BlockKind;
   cycleIndex: number;
   key: string;
   start: number;
   end: number;
+}
+
+export interface FineSession {
+  id: string;
+  kind: BlockKind;
+  cycleIndex: number;
+  startedAt: number;
+  endsAt: number;
+  status: 'running' | 'paid' | 'expired';
+}
+
+export type SessionWindow = Pick<FineSession, 'startedAt' | 'endsAt'>;
+
+export function localDateKey(ms: number): string {
+  const d = new Date(ms);
+  const y = d.getFullYear();
+  return `${y}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function sessionsForDate(sessions: FineSession[], date: string): FineSession[] {
+  return sessions.filter((s) => localDateKey(s.startedAt) === date);
+}
+
+function overlapCount(sessions: SessionWindow[], start: number, end: number): number {
+  let n = 0;
+  for (const s of sessions) {
+    if (s.startedAt < end && s.endsAt > start) n += 1;
+  }
+  return n;
 }
 
 function localAt(date: string, minutes: number, dayOffset = 0): number {
@@ -25,7 +56,11 @@ export function windowBounds(
   return { start, end };
 }
 
-export function chainSchedule(settings: Settings, date: string): ChainOccurrence[] {
+export function chainSchedule(
+  settings: Settings,
+  date: string,
+  sessions: SessionWindow[] = [],
+): ChainOccurrence[] {
   const bounds = windowBounds(settings, date);
   if (!bounds) return [];
   const order = [...new Set(settings.cycleOrder)].filter(
@@ -38,7 +73,9 @@ export function chainSchedule(settings: Settings, date: string): ChainOccurrence
   let cycle = 1;
   while (cursor < bounds.end) {
     const kind = order[index];
-    const durationMs = settings.durations[kind] * 60000;
+    const baseMs = settings.durations[kind] * 60000;
+    const penaltyMs = overlapCount(sessions, cursor, cursor + baseMs) * PENALTY_MIN * 60000;
+    const durationMs = baseMs + penaltyMs;
     occ.push({
       kind,
       cycleIndex: cycle,

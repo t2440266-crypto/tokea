@@ -2,6 +2,7 @@ import { defaultSettings } from './schedule';
 import type { BlockKind, DayEdits, LogEntry, Settings } from './schedule';
 import { defaultRoutine } from './routine';
 import type { Routine } from './routine';
+import type { FineSession } from './cycle';
 import type { HistoryEntry, Topic } from './topics';
 
 export const STORAGE_KEY = 'daydriver:v1';
@@ -23,6 +24,7 @@ export interface Persisted {
   logs: LogEntry[];
   savedTopicIds: string[];
   fines: Record<string, number>;
+  fineSessions: FineSession[];
 }
 
 export function defaultPersisted(): Persisted {
@@ -36,6 +38,7 @@ export function defaultPersisted(): Persisted {
     logs: [],
     savedTopicIds: [],
     fines: {},
+    fineSessions: [],
   };
 }
 
@@ -103,6 +106,7 @@ export function migrate(raw: unknown): Persisted {
     logs: raw.logs as LogEntry[],
     savedTopicIds: Array.isArray(raw.savedTopicIds) ? (raw.savedTopicIds as string[]) : [],
     fines: isRecord(raw.fines) ? (raw.fines as Record<string, number>) : {},
+    fineSessions: Array.isArray(raw.fineSessions) ? (raw.fineSessions as FineSession[]) : [],
   };
 }
 

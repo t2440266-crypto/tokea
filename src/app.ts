@@ -1,7 +1,7 @@
 import { applyEdits, defaultSettings, generatePlan, isVisitDay } from './schedule';
 import type { BlockKind, LogEntry, Plan, Settings } from './schedule';
 import { chainSchedule } from './cycle';
-import type { ChainOccurrence } from './cycle';
+import type { ChainOccurrence, FineSession } from './cycle';
 import { loadState, saveState, defaultPersisted } from './store';
 import type { Persisted, StorageLike } from './store';
 import { SEED_TOPICS } from './seedTopics';
@@ -33,6 +33,7 @@ export interface AppCtx {
     allowRepeats: boolean;
     activeTopicId: string | null;
     recapDate: string | null;
+    payConfirm: { kind: BlockKind; cycleIndex: number } | null;
   };
   subscribe(fn: () => void): () => void;
   emit(): void;
@@ -56,6 +57,12 @@ export interface AppCtx {
   reconcile(): void;
   schedule(): ChainOccurrence[];
   fines(): Record<string, number>;
+  startFineSession(kind: BlockKind, cycleIndex: number): FineSession | null;
+  answerSession(id: string, result: 'paid' | 'notdone'): void;
+  expireSessions(): void;
+  activeSession(): FineSession | null;
+  askPayFine(kind: BlockKind, cycleIndex: number): void;
+  dismissPayFine(): void;
   extendBlock(id: string): void;
   moveBlock(id: string, dir: -1 | 1): void;
   regenDay(): void;
@@ -90,6 +97,7 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
     allowRepeats: false,
     activeTopicId: null,
     recapDate: null,
+    payConfirm: null,
   };
 
   function emit(): void {
@@ -226,7 +234,7 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
       return;
     }
     if (existing) return;
-    const occurrence = chainSchedule(persisted.settings, state.date).find(
+    const occurrence = chainSchedule(persisted.settings, state.date, persisted.fineSessions).find(
       (o) => o.cycleIndex === occ.cycleIndex && o.kind === occ.kind,
     );
     const entry: LogEntry = {
@@ -248,8 +256,9 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
   }
 
   function reconcile(): void {
+    expireSessions();
     const nowMs = state.nowMs;
-    const daySchedule = chainSchedule(persisted.settings, state.date);
+    const daySchedule = chainSchedule(persisted.settings, state.date, persisted.fineSessions);
     let changed = false;
     for (const occ of daySchedule) {
       if (occ.end > nowMs) continue;
@@ -270,11 +279,64 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
   }
 
   function schedule(): ChainOccurrence[] {
-    return chainSchedule(persisted.settings, state.date);
+    return chainSchedule(persisted.settings, state.date, persisted.fineSessions);
   }
 
   function fines(): Record<string, number> {
     return persisted.fines;
+  }
+
+  function startFineSession(kind: BlockKind, cycleIndex: number): FineSession | null {
+    if (persisted.fineSessions.some((s) => s.status === 'running')) return null;
+    const startedAt = state.nowMs;
+    const durationMs = (persisted.settings.durations[kind] ?? 0) * 60000;
+    const session: FineSession = {
+      id: crypto.randomUUID(),
+      kind,
+      cycleIndex,
+      startedAt,
+      endsAt: startedAt + durationMs,
+      status: 'running',
+    };
+    persisted.fineSessions.push(session);
+    emit();
+    return session;
+  }
+
+  function answerSession(id: string, result: 'paid' | 'notdone'): void {
+    const session = persisted.fineSessions.find((s) => s.id === id);
+    if (!session || session.status !== 'running') return;
+    if (state.nowMs >= session.endsAt) return;
+    if (result === 'paid') {
+      const row = findRow(state.date, session.cycleIndex, session.kind);
+      if (row && row.outcome === 'x') {
+        row.outcome = 'done';
+        row.corrected = true;
+      }
+      if ((persisted.fines[session.kind] ?? 0) > 0) {
+        persisted.fines[session.kind] = persisted.fines[session.kind] - 1;
+      }
+      session.status = 'paid';
+    } else {
+      session.status = 'expired';
+    }
+    emit();
+  }
+
+  function expireSessions(): void {
+    const now = state.nowMs;
+    let changed = false;
+    for (const session of persisted.fineSessions) {
+      if (session.status === 'running' && now >= session.endsAt) {
+        session.status = 'expired';
+        changed = true;
+      }
+    }
+    if (changed) emit();
+  }
+
+  function activeSession(): FineSession | null {
+    return persisted.fineSessions.find((s) => s.status === 'running') ?? null;
   }
 
   function setLogNote(blockId: string, note: string): void {
@@ -378,6 +440,18 @@ export function createApp(rootStorage: StorageLike, opts?: { nowMs?: number }): 
     reconcile,
     schedule,
     fines,
+    startFineSession,
+    answerSession,
+    expireSessions,
+    activeSession,
+    askPayFine(kind, cycleIndex) {
+      state.payConfirm = { kind, cycleIndex };
+      emit();
+    },
+    dismissPayFine() {
+      state.payConfirm = null;
+      emit();
+    },
     moveBlock,
     regenDay,
     isDirty() {

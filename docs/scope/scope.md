@@ -25,6 +25,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 4 | Lighthouse audit pass | Slice 1 | done |
 | 5 | Automatic cycling engine | Slice 2 | in-progress |
 | 6 | Every day of the week | Slice 2 | done |
+| 7 | Fine payment mode | Slice 3 | in-progress |
 
 ## Existing
 
@@ -121,6 +122,22 @@ Run the loop on all seven days, not just five, because the app is used personall
 - [x] Verify it: CDP probe on Settings — 7 chips selected, `visitDays=0,1,2,3,4,5,6` (PASS); migration units cover upgrade and custom-set cases
 - [x] Test it: default + migration tests in `schedule.test.ts` and `store.test.ts`; suite 77/77
 Code in `src/schedule.ts`, `src/store.ts`
+
+## Slice 3: Fine payment mode
+
+### 7. Fine payment mode · in-progress
+Tapping a missed activity from an earlier cycle opens a pay-fine flow instead of the plain correction: a custom confirmation with the exact copy and a `Pay fine and start the time-count` button starts a time-count session for that one activity; 10 minutes before it ends the verification prompt appears with a `The activity done and Fine Paid` button, and ticking it clears the fine. The daily chain keeps running during the session and every daily activity overlapping it is charged +25 minutes; the session card shows the no-sympathy taunt copy while you pay.
+
+**Done when:** tapping a previous cycle miss shows the custom confirm with `Pay fine and start the time-count`; pressing it starts a countdown for that activity only; the prompt at end minus 10 offers `The activity done and Fine Paid` and ticking clears the fine; the chain keeps advancing during the session, every overlapping activity carries +25 minutes on the timeline; the taunt line is visible while paying.
+- [x] Design it (spec): `/architect fine payment mode`
+- [x] Build it: /develop fine payment mode
+   - [x] Pure engine: session windows, sequential +25 cursor, live running extension + tests (AC-5)
+   - [x] Persistence: fineSessions, start/answer/expire (ticker + boot), idempotent paid, endsAt guard + tests (AC-2, AC-3, AC-4, AC-7)
+   - [x] UI: confirm card exact copy, session hero with taunt, prompt copy switch, live-ledger row routing, stacked overlay (AC-1, AC-6, AC-8)
+   - [x] All `chainSchedule` callers pass sessions; AC-tagged suite green (AC-3, AC-5)
+- [ ] Verify it: /check verify fine payment mode
+- [ ] Test it: /test fine payment mode
+Spec [0004](../specs/0004-fine-payment-mode/index.md) · code in `src/cycle.ts`, `src/app.ts`, `src/main.ts`, `src/ui/today.ts`, `src/notify.ts`
 
 ## Deferred
 Out of scope for this build pass, kept so the plan stays honest. These are MASTERPROMPT non goals.

@@ -7,6 +7,12 @@ import { el, fmtRemaining, haptic } from './dom';
 
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
+export const PAY_CONFIRM_COPY =
+  "It looks like you want to pay the fine you penalized for missing this previous activity from the previous cycle, press 'Pay fine and start the time-count to pay this specific exact activity only";
+
+export const FINE_TAUNT =
+  'That is your dumb foolish fault and I will not have sympathy or mercy on you while paying the fines. Finish paying the fines while the daily activities run — they add +25 minutes for every daily activity running while you pay.';
+
 function fmtMs(ms: number): string {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -57,6 +63,35 @@ export function renderToday(root: HTMLElement, ctx: AppCtx): void {
   const current = occurrenceAt(sched, nowMs);
   const logs = ctx.todayLogs();
   const fines = ctx.fines();
+  const session = ctx.activeSession();
+
+  if (session) {
+    hero.append(el('p', { class: 'eyebrow accent', text: 'paying fine' }));
+    hero.append(el('p', { class: 'hero-title', text: TITLES[session.kind] }));
+    const remaining = (session.endsAt - nowMs) / 60000;
+    const dur = (session.endsAt - session.startedAt) / 60000;
+    const c = 2 * Math.PI * 54;
+    const ringWrap = el('div', { class: 'ring-wrap' });
+    ringWrap.innerHTML = `
+      <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="ring-track" cx="60" cy="60" r="54"></circle>
+        <circle class="ring-fill" cx="60" cy="60" r="54" data-ring
+          stroke-dasharray="${c.toFixed(1)}"
+          stroke-dashoffset="${(c * (1 - Math.min(1, Math.max(0, remaining / dur)))).toFixed(1)}"></circle>
+      </svg>
+      <span class="ring-num mono" data-remaining data-end="${session.endsAt}" data-dur="${dur}">${fmtRemaining(remaining)}</span>`;
+    hero.append(ringWrap);
+    hero.append(
+      el('p', {
+        class: 'hero-sub mono',
+        text: `time-count · until ${fmtMs(session.endsAt)} · ${Math.round(dur)} min`,
+      }),
+    );
+    hero.append(el('p', { class: 'taunt', text: FINE_TAUNT }));
+    root.append(hero);
+    appendTail(ctx, sched, logs, fines, current, nowMs, root);
+    return;
+  }
 
   if (bounds && nowMs < bounds.start && !current) {
     const first = sched[0];
@@ -212,8 +247,15 @@ function appendTail(
     head.append(el('span', { class: `prow-status ${statusClass}`, text: status }));
     if (row?.outcome === 'x') {
       head.classList.add('correctable');
-      head.title = 'Tap to correct this X for today';
+      head.title =
+        (fines[occ.kind] ?? 0) > 0
+          ? 'Pay the fine for this missed activity'
+          : 'Tap to correct this X for today';
       head.addEventListener('click', () => {
+        if ((fines[occ.kind] ?? 0) > 0) {
+          ctx.askPayFine(occ.kind, occ.cycleIndex);
+          return;
+        }
         if (
           window.confirm(
             `Mark ${TITLES[occ.kind]} (cycle ${occ.cycleIndex}) as done instead? The fine comes off.`,
@@ -235,11 +277,13 @@ function appendTail(
 
 export function tickToday(ctx: AppCtx): void {
   const nowMs = ctx.state.nowMs;
-  const current = occurrenceAt(ctx.schedule(), nowMs);
+  const session = ctx.activeSession();
+  const current = session ? null : occurrenceAt(ctx.schedule(), nowMs);
+  const targetEnd = session ? session.endsAt : current ? current.end : null;
   const remainingEl = document.querySelector<HTMLElement>('[data-remaining]');
-  if (remainingEl && current) {
-    const dur = Number(remainingEl.dataset.dur) || (current.end - current.start) / 60000;
-    const remaining = (current.end - nowMs) / 60000;
+  if (remainingEl && targetEnd !== null) {
+    const dur = Number(remainingEl.dataset.dur) || 1;
+    const remaining = (targetEnd - nowMs) / 60000;
     remainingEl.textContent = fmtRemaining(remaining);
     const ring = document.querySelector<SVGCircleElement>('[data-ring]');
     if (ring) {

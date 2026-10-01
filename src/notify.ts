@@ -1,5 +1,5 @@
 import { TITLES } from './schedule';
-import type { ChainOccurrence } from './cycle';
+import type { ChainOccurrence, FineSession } from './cycle';
 
 const askedThisSession = new Set<string>();
 
@@ -72,6 +72,40 @@ export function notifyPrompt(occ: ChainOccurrence): void {
     actions: [
       { action: 'tick', title: 'Done' },
       { action: 'x', title: 'Not done' },
+    ],
+  });
+  if (!shown) plain(tag, title, body);
+}
+
+export function notifySessionStart(session: FineSession): void {
+  if (!canNotify()) return;
+  const tag = `fine-session:${session.id}`;
+  const title = TITLES[session.kind];
+  const body = `Paying the fine · time-count until ${fmt(session.endsAt)}`;
+  const shown = viaServiceWorker({
+    type: 'notify',
+    tag,
+    title,
+    body,
+    data: { kind: 'fine-session', key: session.id },
+  });
+  if (!shown) plain(tag, title, body);
+}
+
+export function notifyFinePrompt(session: FineSession): void {
+  if (!canNotify()) return;
+  const tag = `fine-prompt:${session.id}`;
+  const title = `${TITLES[session.kind]} payment ends soon`;
+  const body = `Confirm before ${fmt(session.endsAt)} · until then`;
+  const shown = viaServiceWorker({
+    type: 'notify',
+    tag,
+    title,
+    body,
+    data: { kind: 'fine-prompt', key: session.id },
+    actions: [
+      { action: 'paid', title: 'The activity done and Fine Paid' },
+      { action: 'notdone', title: 'Not done' },
     ],
   });
   if (!shown) plain(tag, title, body);

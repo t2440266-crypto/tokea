@@ -1,5 +1,5 @@
 import type { AppCtx } from '../app';
-import { chainSchedule } from '../cycle';
+import { chainSchedule, sessionsForDate } from '../cycle';
 import { TITLES } from '../schedule';
 import type { BlockKind } from '../schedule';
 import { el } from './dom';
@@ -10,7 +10,11 @@ export function renderRecap(root: HTMLElement, ctx: AppCtx): void {
   const date = ctx.state.recapDate ?? ctx.state.date;
   const settings = ctx.state.persisted.settings;
   const logs = ctx.state.persisted.logs.filter((l) => l.date === date);
-  const sched = chainSchedule(settings, date);
+  const sched = chainSchedule(
+    settings,
+    date,
+    sessionsForDate(ctx.state.persisted.fineSessions, date),
+  );
 
   const plannedMin = sched.reduce((sum, o) => sum + (o.end - o.start) / 60000, 0);
   const completedMin = logs
