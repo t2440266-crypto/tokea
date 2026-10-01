@@ -49,6 +49,14 @@ describe('loadState', () => {
     state.savedTopicIds.push('mod-attention');
     state.template.days['2026-09-30'] = { edits: { starts: { discussion: 900 } }, dirty: true };
     state.settings.template = ['discussion', 'stories', 'pushups', 'smoke', 'dumbbell', 'parallel'];
+    state.fineSessions.push({
+      id: 'sess-1',
+      kind: 'pushups',
+      cycleIndex: 2,
+      startedAt: 1760000000000,
+      endsAt: 1760000060000,
+      status: 'running',
+    });
     state.routine.exercises[0] = { ...state.routine.exercises[0], name: 'Renamed lift', sets: 5 };
     const storage = memStorage();
     saveState(storage, state);

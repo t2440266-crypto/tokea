@@ -136,7 +136,7 @@ Tapping a missed activity from an earlier cycle opens a pay-fine flow instead of
    - [x] UI: confirm card exact copy, session hero with taunt, prompt copy switch, live-ledger row routing, stacked overlay (AC-1, AC-6, AC-8)
    - [x] All `chainSchedule` callers pass sessions; AC-tagged suite green (AC-3, AC-5)
 - [ ] Verify it: /check verify fine payment mode
-- [ ] Test it: /test fine payment mode
+- [x] Test it: /test fine payment mode
 Spec [0004](../specs/0004-fine-payment-mode/index.md) · code in `src/cycle.ts`, `src/app.ts`, `src/main.ts`, `src/ui/today.ts`, `src/notify.ts`
 
 ## Deferred

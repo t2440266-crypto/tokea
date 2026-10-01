@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { chainSchedule, occurrenceAt, promptTimes, windowBounds } from './cycle';
+import { chainSchedule, occurrenceAt, promptTimes, sessionsForDate, windowBounds } from './cycle';
 import type { ChainOccurrence } from './cycle';
 import { defaultSettings } from './schedule';
 import type { Settings } from './schedule';
@@ -159,6 +159,28 @@ describe('penalty adjusted schedule [spec 0004]', () => {
     const base = chainSchedule(s(), DATE);
     const none = chainSchedule(s(), DATE, []);
     expect(none).toEqual(base);
+  });
+
+  test('sessionsForDate keeps only sessions started on that date [covers AC-5]', () => {
+    const sameDay = {
+      id: 'a',
+      kind: 'pushups' as const,
+      cycleIndex: 1,
+      startedAt: at(9),
+      endsAt: at(9, 10),
+      status: 'running' as const,
+    };
+    const otherDay = {
+      id: 'b',
+      kind: 'smoke' as const,
+      cycleIndex: 1,
+      startedAt: at(9) + 86400000,
+      endsAt: at(9, 10) + 86400000,
+      status: 'paid' as const,
+    };
+    expect(sessionsForDate([sameDay, otherDay], DATE)).toHaveLength(1);
+    expect(sessionsForDate([sameDay, otherDay], DATE)[0].id).toBe('a');
+    expect(sessionsForDate([sameDay, otherDay], '2026-10-02')).toHaveLength(1);
   });
 });
 
