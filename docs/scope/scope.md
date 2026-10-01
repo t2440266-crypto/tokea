@@ -27,7 +27,7 @@ _These are recommendations to keep your build orderly, not requirements. Skip an
 | 6 | Every day of the week | Slice 2 | done |
 | 7 | Fine payment mode | Slice 3 | done |
 | 8 | Engine on off toggle | Slice 4 | planned |
-| 9 | Faster response | Slice 4 | planned |
+| 9 | Faster response | Slice 4 | done |
 
 ## Existing
 
@@ -149,11 +149,13 @@ A master ON/OFF switch for the day engine. Fresh day (and fresh app open) starts
 **Done when:** the toggle is prominent on TODAY; default state each day is OFF; ON starts the chain at the toggle moment with Pushups; OFF freezes the effective clock so no occurrence advances, no prompt or notification fires, and boot reconcile books nothing for off time; ON again resumes exactly where it stopped; state survives reload; a fine session cannot run while OFF.
 - [ ] Design it (spec): `/architect engine on off toggle`
 
-### 9. Faster response
+### 9. Faster response · done
 Profile and fix perceived slowness across the app: taps, screen switches, first open, and boundary timing. Evidence first, then cut what measures slow.
 
 **Done when:** a profiling pass names the hot spots with numbers; the fixes land with before/after measurements; taps and view switches feel immediate; no behavior from specs 0003 or 0004 changes.
-- [ ] Investigate and fix: `/diagnosing-bugs faster response`
+- [x] Investigate and fix: `/diagnosing-bugs faster response`
+  - Evidence: baseline harness (CDP) — taps median ≤2.5ms, long tasks 0 (refuted click cost and boot work); fixes: engine tick 1000ms → 250ms (ring/prompt latency 4×), font preloads (local LCP = FCP = 780ms after); Lighthouse performance 96, FCP 1155ms within the 1.5s budget; suite 91/91, lint 0
+Code in `src/main.ts`, `index.html`
 
 ## Deferred
 Out of scope for this build pass, kept so the plan stays honest. These are MASTERPROMPT non goals.
